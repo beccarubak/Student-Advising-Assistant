@@ -1,6 +1,5 @@
 {
   "dependencies": {
-    "@apollo/server": "^5.4.0",
     "apollo-server": "^3.13.0",
     "axios": "^1.13.5",
     "dotenv": "^17.3.1",

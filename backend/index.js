@@ -19,7 +19,7 @@ const server = new ApolloServer({
 
     try {
       const token = authHeader.replace("Bearer ", "");
-      const decoded = jwt.verify(token, "SUPER_SECRET_KEY");
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
       return { studentId: decoded.studentId };
     } catch {

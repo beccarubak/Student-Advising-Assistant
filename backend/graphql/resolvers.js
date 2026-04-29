@@ -161,7 +161,7 @@ const resolvers = {
 
       const token = jwt.sign(
         { studentId: student._id },
-        "SUPER_SECRET_KEY",
+        process.env.JWT_SECRET,
         { expiresIn: "1h" }
       );
 
