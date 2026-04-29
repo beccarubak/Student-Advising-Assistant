@@ -1,0 +1,191 @@
+const mongoose = require("mongoose");
+const Student = require("../models/student");
+const Course = require("../models/courses");
+const DegreeProgram = require("../models/degreePrograms");
+const Enrollment = require("../models/enrollment"); 
+const { calculateDegreeAudit } = require("../services/degreeAuditService");
+const { enrollStudentWithValidation, updateEnrollmentStatus } = require("../services/enrollmentService");
+const { askLLM } = require("../services/llmService");
+const jwt = require("jsonwebtoken");
+
+
+const resolvers = {
+  Query: {
+    //student queries
+    getStudents: async () => await Student.find(),
+    getStudent: async (_, { id }) =>{
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error("Invalid student ID");
+      }
+      return await Student.findById(id)},
+
+    //course queries
+    getCourses: async () => await Course.find(),
+
+    //degree program queries  
+    getDegreePrograms: async () => await DegreeProgram.find(),
+    getDegreeProgram: async (_, { id }) =>{
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error("Invalid degree program ID");
+      }
+      return await DegreeProgram.findById(id)
+    },
+
+    //enrollment queries
+    getEnrollments: async () => await Enrollment.find(),
+    getStudentEnrollments: async (_, { studentId }) => {
+      if (!mongoose.Types.ObjectId.isValid(studentId)) {
+        throw new Error("Invalid student ID");
+      }
+      return await Enrollment.find({ studentId });
+    },
+
+    //degree audit query
+    getDegreeAudit: async (_, { studentId }) =>
+      await calculateDegreeAudit(studentId),
+
+    //course enrollement summary query
+    getCourseEnrollmentSummary: async () => {
+      const summary = await Enrollment.aggregate([
+        //active enrollments
+        { $match: { status: "Enrolled" } },
+        //grouped by course
+        {
+          $group: {
+            _id: "$courseId",
+            totalEnrolled: { $sum: 1 },
+          },
+        },
+        // Join with Course collection
+        {
+          $lookup: {
+            from: "courses",
+            localField: "_id",
+            foreignField: "_id",
+            as: "course",
+          },
+        },
+        { $unwind: "$course" },
+        {
+          $project: {
+            courseId: "$_id",
+            courseName: "$course.courseName",
+            totalEnrolled: 1,
+          },
+        },
+      ]);
+      return summary;
+    },
+  },
+
+  Mutation: {
+    //student mutations
+    createStudent: async (_, { input }) => {
+      const student = new Student(input);
+      return await student.save();
+    },
+    updateStudent: async (_, { id, input }) =>{
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error("Invalid student ID");
+      }
+      return await Student.findByIdAndUpdate(id, input, { new: true })
+    },
+    deleteStudent: async (_, { id }) => {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error("Invalid student ID");
+      }
+      await Student.findByIdAndDelete(id);
+      return true;
+    },
+
+    //course mutations
+    createCourse: async (_, { courseCode, courseName, credits }) => {
+      const course = new Course({ courseCode, courseName, credits });
+      return await course.save();
+    },
+    addRequiredCourse: async (_, { programId, courseId }) => {
+      if (!mongoose.Types.ObjectId.isValid(programId)) {
+        throw new Error("Invalid degree program ID");
+      }
+      if (!mongoose.Types.ObjectId.isValid(courseId)) { 
+        throw new Error("Invalid course ID");
+      }
+
+      const program = await DegreeProgram.findById(programId);
+      if (!program) {
+        throw new Error("Degree program not found");
+      }
+
+      if (!program.requiredCourses.some(id => id.toString() === courseId)) {
+        program.requiredCourses.push(courseId);
+      }
+
+      return await program.save();
+    },
+
+    //degree program mutations
+    createDegreeProgram: async (_, { programName, totalCreditsRequired }) => {
+      const program = new DegreeProgram({
+        programName,
+        totalCreditsRequired,
+      });
+      return await program.save();
+    },
+
+    //enrollment mutations
+    enrollStudent: async (_, { studentId, courseId, term }) =>
+      await enrollStudentWithValidation(studentId, courseId, term),
+    updateEnrollmentStatus: async (_, { enrollmentId, status, grade }) => {
+      if (!mongoose.Types.ObjectId.isValid(enrollmentId)) {
+        throw new Error("Invalid enrollment ID");
+      }
+      return await updateEnrollmentStatus(enrollmentId, status, grade);
+    },
+
+     //chat mutations
+    askQuestion: async (_, { question }, context) => {
+      if (!context.studentId) {
+        throw new Error("Not authenticated");
+      }
+      
+      return await askLLM(context.studentId, question);
+    },
+
+    //login mutation
+    login: async (_, { email }) => {
+      const student = await Student.findOne({ email });
+
+      if (!student) {
+        throw new Error("Student not found");
+      }
+
+      const token = jwt.sign(
+        { studentId: student._id },
+        "SUPER_SECRET_KEY",
+        { expiresIn: "1h" }
+      );
+
+      return { token };
+    },
+  },
+
+  //resolvers for nested fields
+  Student: {
+    degreeProgram: async (parent) =>
+      await DegreeProgram.findById(parent.degreeProgramId),
+  },
+
+  Enrollment: {
+    student: async (parent) =>
+      await Student.findById(parent.studentId),
+    course: async (parent) =>
+      await Course.findById(parent.courseId),
+  },
+
+  DegreeProgram: {
+    requiredCourses: async (parent) =>
+      await Course.find({ _id: { $in: parent.requiredCourses } }),
+  },
+};
+
+module.exports = { resolvers };
