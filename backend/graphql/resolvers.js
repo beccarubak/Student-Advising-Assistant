@@ -5,6 +5,8 @@ const DegreeProgram = require("../models/degreePrograms");
 const Enrollment = require("../models/enrollment");
 const Advisor = require("../models/advisor");
 const AdvisingNote = require("../models/advisingNotes");
+const ChangeRequest = require("../models/changeRequest");
+const Message = require("../models/message");
 const { calculateDegreeAudit } = require("../services/degreeAuditService");
 const { enrollStudentWithValidation, updateEnrollmentStatus } = require("../services/enrollmentService");
 const { askLLM } = require("../services/llmService");
@@ -58,6 +60,25 @@ const resolvers = {
         throw new Error("Invalid student ID");
       }
       return await AdvisingNote.find({ studentId });
+    },
+
+    //change request queries
+    getChangeRequest: async (_, { id }, context) => {
+      if (!mongoose.Types.ObjectId.isValid(id)) throw new Error("Invalid ID");
+      const request = await ChangeRequest.findById(id);
+      if (!request) throw new Error("Change request not found");
+      const isOwner = context.role === "student" && request.studentId.toString() === context.userId;
+      const isAdvisor = context.role === "advisor" && request.advisorId.toString() === context.userId;
+      if (!isOwner && !isAdvisor) throw new Error("Unauthorized");
+      return request;
+    },
+    getMyChangeRequests: async (_, __, context) => {
+      requireRole(context, "student");
+      return await ChangeRequest.find({ studentId: context.userId });
+    },
+    getPendingChangeRequests: async (_, __, context) => {
+      requireRole(context, "advisor");
+      return await ChangeRequest.find({ advisorId: context.userId, status: "pending" });
     },
 
     //degree audit query
@@ -273,6 +294,50 @@ const resolvers = {
       return true;
     },
 
+    //communication mutations
+    submitChangeRequest: async (_, { advisorId, requestType, currentValue, proposedValue }, context) => {
+      requireRole(context, "student");
+      if (!mongoose.Types.ObjectId.isValid(advisorId)) throw new Error("Invalid advisor ID");
+      const advisor = await Advisor.findById(advisorId);
+      if (!advisor) throw new Error("Advisor not found");
+      return await ChangeRequest.create({
+        studentId: context.userId,
+        advisorId,
+        requestType,
+        currentValue,
+        proposedValue,
+      });
+    },
+    sendMessage: async (_, { changeRequestId, content }, context) => {
+      requireRole(context, "student", "advisor");
+      if (!mongoose.Types.ObjectId.isValid(changeRequestId)) throw new Error("Invalid change request ID");
+      const request = await ChangeRequest.findById(changeRequestId);
+      if (!request) throw new Error("Change request not found");
+      const isParty =
+        (context.role === "student" && request.studentId.toString() === context.userId) ||
+        (context.role === "advisor" && request.advisorId.toString() === context.userId);
+      if (!isParty) throw new Error("Unauthorized");
+      return await Message.create({
+        changeRequestId,
+        senderId: context.userId,
+        senderRole: context.role,
+        content,
+      });
+    },
+    resolveChangeRequest: async (_, { id, status, advisorNotes }, context) => {
+      requireRole(context, "advisor");
+      if (!mongoose.Types.ObjectId.isValid(id)) throw new Error("Invalid ID");
+      const request = await ChangeRequest.findById(id);
+      if (!request) throw new Error("Change request not found");
+      if (request.advisorId.toString() !== context.userId) throw new Error("Unauthorized");
+      if (request.status !== "pending") throw new Error("Request is already resolved");
+      return await ChangeRequest.findByIdAndUpdate(
+        id,
+        { status, advisorNotes: advisorNotes || null, resolvedAt: new Date() },
+        { new: true }
+      );
+    },
+
     //login mutation
     login: async (_, { email }) => {
       const student = await Student.findOne({ email });
@@ -322,6 +387,16 @@ const resolvers = {
   AdvisingNote: {
     student: async (parent) => await Student.findById(parent.studentId),
     advisor: async (parent) => await Advisor.findById(parent.advisorId),
+  },
+
+  ChangeRequest: {
+    student: async (parent) => await Student.findById(parent.studentId),
+    advisor: async (parent) => await Advisor.findById(parent.advisorId),
+    messages: async (parent) => await Message.find({ changeRequestId: parent._id }).sort({ createdAt: 1 }),
+  },
+
+  Message: {
+    changeRequest: async (parent) => await ChangeRequest.findById(parent.changeRequestId),
   },
 };
 

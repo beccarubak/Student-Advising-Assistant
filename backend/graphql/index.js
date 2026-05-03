@@ -8,6 +8,7 @@ const chatInteractionTypeDefs = require("./chatInteractionTypeDefs");
 const authTypeDefs = require("./authTypeDefs");
 const advisorTypeDefs = require("./advisorTypeDefs");
 const advisingNoteTypeDefs = require("./advisingNoteTypeDefs");
+const communicationTypeDefs = require("./communicationTypeDefs");
 
 const rootTypeDefs = gql`
   type Query
@@ -25,4 +26,5 @@ module.exports = [
   authTypeDefs,
   advisorTypeDefs,
   advisingNoteTypeDefs,
+  communicationTypeDefs,
 ];
