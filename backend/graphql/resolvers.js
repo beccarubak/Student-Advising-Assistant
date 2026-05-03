@@ -229,8 +229,6 @@ const resolvers = {
 
     //student-advisor assignment
     assignAdvisor: async (_, { studentId, advisorId }) => {
-    //advising note mutations
-    createAdvisingNote: async (_, { studentId, advisorId, note }) => {
       if (!mongoose.Types.ObjectId.isValid(studentId)) {
         throw new Error("Invalid student ID");
       }
@@ -244,6 +242,16 @@ const resolvers = {
         { advisorId },
         { new: true }
       );
+    },
+
+    //advising note mutations
+    createAdvisingNote: async (_, { studentId, advisorId, note }) => {
+      if (!mongoose.Types.ObjectId.isValid(studentId)) {
+        throw new Error("Invalid student ID");
+      }
+      if (!mongoose.Types.ObjectId.isValid(advisorId)) {
+        throw new Error("Invalid advisor ID");
+      }
       const student = await Student.findById(studentId);
       if (!student) throw new Error("Student not found");
       const advisor = await Advisor.findById(advisorId);
