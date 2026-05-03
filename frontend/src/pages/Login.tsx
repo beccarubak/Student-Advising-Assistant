@@ -1,17 +1,18 @@
 import { useState } from "react";
 import { graphqlRequest } from "../services/api";
 
-function Login({ onLogin }: { onLogin: () => void }) {
+function Login({ onLogin }: { onLogin: (role: string) => void }) {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
 
   const handleLogin = async () => {
     try {
-      const data = await graphqlRequest<{ login: { token: string } }>(
+      const data = await graphqlRequest<{ login: { token: string; role: string } }>(
         `
         mutation Login($email: String!) {
           login(email: $email) {
             token
+            role
           }
         }
         `,
@@ -19,7 +20,8 @@ function Login({ onLogin }: { onLogin: () => void }) {
       );
 
       localStorage.setItem("token", data.login.token);
-      onLogin();
+      localStorage.setItem("role", data.login.role);
+      onLogin(data.login.role);
     } catch (err: any) {
       setError(err.message);
     }
@@ -37,12 +39,12 @@ function Login({ onLogin }: { onLogin: () => void }) {
       }}
     >
       <h2 style={{ fontSize: "2.5rem", marginBottom: "50px" }}>
-        Student Login
+        Login
       </h2>
 
       <input
         type="email"
-        placeholder="Enter your student email"
+        placeholder="Enter your email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         style={{
