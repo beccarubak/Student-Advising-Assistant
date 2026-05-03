@@ -186,6 +186,9 @@ const resolvers = {
         throw new Error("Invalid advisor ID");
       }
       await Advisor.findByIdAndDelete(id);
+      return true;
+    },
+
     //advising note mutations
     createAdvisingNote: async (_, { studentId, advisorId, note }) => {
       if (!mongoose.Types.ObjectId.isValid(studentId)) {
