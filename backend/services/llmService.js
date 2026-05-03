@@ -8,7 +8,7 @@ async function askLLM(studentId, question) {
      const intentResponse = await axios.post(
       "http://localhost:11434/api/generate",
       {
-        model: "gemma3:1b",
+        model: process.env.OLLAMA_MODEL,
         prompt: `
         You are an academic advising assistant.
 
