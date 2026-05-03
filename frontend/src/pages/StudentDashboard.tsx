@@ -36,9 +36,9 @@ function getStudentIdFromToken(): string {
 }
 
 function statusColor(status: string): string {
-  if (status === "Enrolled") return "#1976d2";
+  if (status === "Enrolled") return "#2E4053";
   if (status === "Completed") return "#388e3c";
-  return "#d32f2f";
+  return "#c62828";
 }
 
 function StudentDashboard() {
@@ -115,14 +115,14 @@ function StudentDashboard() {
     : 0;
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#f5f5f5" }}>
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#D5D8DC" }}>
 
       {/* Navbar */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "14px 32px", background: "#1a237e", color: "white",
+        padding: "14px 32px", background: "#2E4053", color: "white",
       }}>
-        <span style={{ fontSize: "1.3rem", fontWeight: "bold" }}>Student Advising System</span>
+        <span style={{ fontSize: "1.3rem", fontWeight: "bold" }}>Academic Advising Portal</span>
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           {student && (
             <span style={{ fontSize: "1rem" }}>
@@ -142,20 +142,20 @@ function StudentDashboard() {
       </div>
 
       {/* Progress Bar */}
-      <div style={{ padding: "20px 32px", background: "white", borderBottom: "1px solid #e0e0e0" }}>
-        <div style={{ fontWeight: "600", fontSize: "1rem", marginBottom: 8, color: "#333" }}>
+      <div style={{ padding: "20px 32px", background: "white", borderBottom: "1px solid #BFC9CA" }}>
+        <div style={{ fontWeight: "600", fontSize: "1rem", marginBottom: 8, color: "#2E4053" }}>
           {student?.degreeProgram?.programName ?? "Loading degree program..."}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <div style={{
-            flex: 1, background: "#e0e0e0", borderRadius: 8, height: 22, overflow: "hidden",
+            flex: 1, background: "#BFC9CA", borderRadius: 8, height: 22, overflow: "hidden",
           }}>
             <div style={{
-              background: "#43a047", height: "100%", borderRadius: 8,
+              background: "#F1C40F", height: "100%", borderRadius: 8,
               width: `${progressPct}%`, transition: "width 0.6s ease",
             }} />
           </div>
-          <span style={{ fontSize: "0.95rem", whiteSpace: "nowrap", color: "#555", minWidth: 130 }}>
+          <span style={{ fontSize: "0.95rem", whiteSpace: "nowrap", color: "#AAB7B8", minWidth: 130 }}>
             {audit
               ? `${audit.creditsCompleted} / ${audit.totalCreditsRequired} credits completed`
               : "Loading..."}
@@ -172,19 +172,19 @@ function StudentDashboard() {
           boxShadow: "0 1px 4px rgba(0,0,0,0.08)", padding: 20,
           overflowY: "auto", maxHeight: "calc(100vh - 160px)",
         }}>
-          <h3 style={{ marginTop: 0, marginBottom: 16, fontSize: "1rem", color: "#1a237e" }}>
+          <h3 style={{ marginTop: 0, marginBottom: 16, fontSize: "1rem", color: "#2E4053" }}>
             My Courses
           </h3>
           {enrollments.length === 0 && (
-            <p style={{ color: "#aaa", fontSize: "0.9rem" }}>No enrollments found.</p>
+            <p style={{ color: "#AAB7B8", fontSize: "0.9rem" }}>No enrollments found.</p>
           )}
           {enrollments.map((e) => (
             <div key={e.id} style={{
               padding: "10px 12px", marginBottom: 10, borderRadius: 6,
-              background: "#fafafa", border: "1px solid #e8e8e8",
+              background: "#fafafa", border: "1px solid #BFC9CA",
             }}>
               <div style={{ fontWeight: "600", fontSize: "0.95rem" }}>{e.course.courseName}</div>
-              <div style={{ fontSize: "0.82rem", color: "#777", marginTop: 3 }}>
+              <div style={{ fontSize: "0.82rem", color: "#AAB7B8", marginTop: 3 }}>
                 {e.course.courseCode} &middot; {e.term}
               </div>
               <div style={{ marginTop: 7, display: "flex", alignItems: "center", gap: 8 }}>
@@ -195,7 +195,7 @@ function StudentDashboard() {
                   {e.status}
                 </span>
                 {e.grade && (
-                  <span style={{ fontSize: "0.82rem", color: "#555" }}>Grade: {e.grade}</span>
+                  <span style={{ fontSize: "0.82rem", color: "#AAB7B8" }}>Grade: {e.grade}</span>
                 )}
               </div>
             </div>
@@ -208,31 +208,31 @@ function StudentDashboard() {
           boxShadow: "0 1px 4px rgba(0,0,0,0.08)", padding: 20,
           display: "flex", flexDirection: "column", maxHeight: "calc(100vh - 160px)",
         }}>
-          <h3 style={{ marginTop: 0, marginBottom: 16, fontSize: "1rem", color: "#1a237e" }}>
+          <h3 style={{ marginTop: 0, marginBottom: 16, fontSize: "1rem", color: "#2E4053" }}>
             Academic Advisor Chat
           </h3>
 
           <div style={{
-            flex: 1, overflowY: "auto", border: "1px solid #e0e0e0",
+            flex: 1, overflowY: "auto", border: "1px solid #BFC9CA",
             borderRadius: 6, padding: 16, marginBottom: 16, background: "#fafafa",
           }}>
             {messages.length === 0 && (
-              <p style={{ color: "#bbb", fontSize: "0.9rem", margin: 0 }}>
+              <p style={{ color: "#BFC9CA", fontSize: "0.9rem", margin: 0 }}>
                 Ask about your degree progress, course eligibility, or graduation status.
               </p>
             )}
             {messages.map((m, i) => (
               <div key={i} style={{ marginBottom: 20 }}>
-                <div style={{ fontWeight: "bold", color: "#1a237e", marginBottom: 3 }}>You</div>
+                <div style={{ fontWeight: "bold", color: "#2E4053", marginBottom: 3 }}>You</div>
                 <div style={{ marginBottom: 10, fontSize: "0.95rem" }}>{m.user}</div>
-                <div style={{ fontWeight: "bold", color: "#388e3c", marginBottom: 3 }}>Advisor</div>
+                <div style={{ fontWeight: "bold", color: "#AAB7B8", marginBottom: 3 }}>Advisor</div>
                 <div style={{ whiteSpace: "pre-line", fontSize: "0.95rem" }}>{m.bot}</div>
               </div>
             ))}
           </div>
 
           {chatError && (
-            <p style={{ color: "red", fontSize: "0.85rem", marginBottom: 8 }}>{chatError}</p>
+            <p style={{ color: "#c62828", fontSize: "0.85rem", marginBottom: 8 }}>{chatError}</p>
           )}
 
           <div style={{ display: "flex", gap: 10 }}>
@@ -243,15 +243,15 @@ function StudentDashboard() {
               placeholder="Ask a question..."
               style={{
                 flex: 1, fontSize: "1rem", padding: "10px 14px",
-                borderRadius: 6, border: "1px solid #ccc", outline: "none",
+                borderRadius: 6, border: "1px solid #BFC9CA", outline: "none",
               }}
             />
             <button
               onClick={sendMessage}
               style={{
                 fontSize: "1rem", padding: "10px 22px", cursor: "pointer",
-                background: "#1a237e", color: "white", border: "none",
-                borderRadius: 6, fontWeight: "600",
+                background: "#F1C40F", color: "#2E4053", border: "none",
+                borderRadius: 6, fontWeight: "700",
               }}
             >
               Send

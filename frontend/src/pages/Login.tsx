@@ -30,13 +30,13 @@ function Login({ onLogin }: { onLogin: (role: string) => void }) {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "#f5f5f5",
+      background: "#D5D8DC",
       display: "flex",
       flexDirection: "column",
     }}>
       {/* Navbar */}
       <div style={{
-        background: "#1a237e",
+        background: "#2E4053",
         padding: "20px 32px",
         color: "white",
         fontSize: "2rem",
@@ -56,7 +56,7 @@ function Login({ onLogin }: { onLogin: (role: string) => void }) {
         <div style={{
           background: "white",
           borderRadius: 8,
-          boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+          boxShadow: "0 1px 4px rgba(0,0,0,0.1)",
           padding: "48px 40px",
           width: 360,
           textAlign: "center",
@@ -64,12 +64,12 @@ function Login({ onLogin }: { onLogin: (role: string) => void }) {
           <h2 style={{
             margin: "0 0 8px 0",
             fontSize: "1.6rem",
-            color: "#1a237e",
+            color: "#2E4053",
             fontWeight: "700",
           }}>
             Welcome
           </h2>
-          <p style={{ margin: "0 0 32px 0", color: "#888", fontSize: "0.95rem" }}>
+          <p style={{ margin: "0 0 32px 0", color: "#AAB7B8", fontSize: "0.95rem" }}>
             Sign in to your account
           </p>
 
@@ -84,7 +84,7 @@ function Login({ onLogin }: { onLogin: (role: string) => void }) {
               fontSize: "1rem",
               padding: "10px 14px",
               borderRadius: 6,
-              border: "1px solid #ccc",
+              border: "1px solid #BFC9CA",
               marginBottom: 16,
               boxSizing: "border-box",
               outline: "none",
@@ -98,11 +98,11 @@ function Login({ onLogin }: { onLogin: (role: string) => void }) {
               fontSize: "1rem",
               padding: "11px",
               cursor: "pointer",
-              background: "#1a237e",
-              color: "white",
+              background: "#F1C40F",
+              color: "#2E4053",
               border: "none",
               borderRadius: 6,
-              fontWeight: "600",
+              fontWeight: "700",
             }}
           >
             Login
