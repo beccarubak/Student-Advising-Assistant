@@ -6,6 +6,8 @@ const enrollmentTypeDefs = require("./enrollmentTypeDef");
 const degreeAuditTypeDefs = require("./degreeAuditTypeDefs");
 const chatInteractionTypeDefs = require("./chatInteractionTypeDefs");
 const authTypeDefs = require("./authTypeDefs");
+const advisorTypeDefs = require("./advisorTypeDefs");
+const advisingNoteTypeDefs = require("./advisingNoteTypeDefs");
 
 const rootTypeDefs = gql`
   type Query
@@ -20,5 +22,7 @@ module.exports = [
   enrollmentTypeDefs,
   degreeAuditTypeDefs,
   chatInteractionTypeDefs,
-  authTypeDefs
+  authTypeDefs,
+  advisorTypeDefs,
+  advisingNoteTypeDefs,
 ];
