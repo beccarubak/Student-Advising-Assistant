@@ -44,6 +44,44 @@ const resolvers = {
     getDegreeAudit: async (_, { studentId }) =>
       await calculateDegreeAudit(studentId),
 
+    //students nearing graduation report
+    getStudentsNearingGraduation: async (_, { threshold = 9 }) => {
+      const results = await Student.aggregate([
+        { $match: { academicStatus: "Active" } },
+        {
+          $lookup: {
+            from: "enrollments",
+            let: { sid: "$_id" },
+            pipeline: [
+              { $match: { $expr: { $and: [{ $eq: ["$studentId", "$$sid"] }, { $eq: ["$status", "Completed"] }] } } },
+              { $lookup: { from: "courses", localField: "courseId", foreignField: "_id", as: "course" } },
+              { $unwind: "$course" },
+              { $project: { credits: "$course.credits" } },
+            ],
+            as: "completedEnrollments",
+          },
+        },
+        { $addFields: { creditsCompleted: { $sum: "$completedEnrollments.credits" } } },
+        { $lookup: { from: "degreeprograms", localField: "degreeProgramId", foreignField: "_id", as: "degreeProgram" } },
+        { $unwind: "$degreeProgram" },
+        { $addFields: { creditsRemaining: { $subtract: ["$degreeProgram.totalCreditsRequired", "$creditsCompleted"] } } },
+        { $match: { creditsRemaining: { $lte: threshold, $gte: 0 } } },
+        {
+          $project: {
+            studentId: "$_id",
+            firstName: 1,
+            lastName: 1,
+            email: 1,
+            programName: "$degreeProgram.programName",
+            totalCreditsRequired: "$degreeProgram.totalCreditsRequired",
+            creditsCompleted: 1,
+            creditsRemaining: 1,
+          },
+        },
+      ]);
+      return results;
+    },
+
     //course enrollement summary query
     getCourseEnrollmentSummary: async () => {
       const summary = await Enrollment.aggregate([
