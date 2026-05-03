@@ -12,12 +12,7 @@ function App() {
 
   if (role === "advisor") return <AdvisorDashboard />;
 
-  return (
-    <div style={{ padding: 40, alignItems: "center", textAlign: "center" }}>
-      <h1 style={{ fontSize: "3rem", textAlign: "center" }}>Student Advising System</h1>
-      <Login onLogin={handleLogin} />
-    </div>
-  );
+  return <Login onLogin={handleLogin} />;
 }
 
 export default App;
