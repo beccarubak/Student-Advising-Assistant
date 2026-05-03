@@ -39,6 +39,7 @@ const communicationTypeDefs = gql`
     getChangeRequest(id: ID!): ChangeRequest
     getMyChangeRequests: [ChangeRequest]
     getPendingChangeRequests: [ChangeRequest]
+    getAdvisorRequestSummary: [ChangeRequest]
   }
 
   extend type Mutation {

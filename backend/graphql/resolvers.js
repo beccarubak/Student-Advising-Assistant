@@ -80,6 +80,10 @@ const resolvers = {
       requireRole(context, "advisor");
       return await ChangeRequest.find({ advisorId: context.userId, status: "pending" });
     },
+    getAdvisorRequestSummary: async (_, __, context) => {
+      requireRole(context, "advisor");
+      return await ChangeRequest.find({ advisorId: context.userId }).sort({ createdAt: -1 });
+    },
 
     //degree audit query
     getDegreeAudit: async (_, { studentId }) =>
