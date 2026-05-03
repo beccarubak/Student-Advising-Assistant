@@ -2,6 +2,7 @@ const axios = require("axios");
 const ChatInteraction = require("../models/chatInteraction");
 const { calculateDegreeAudit } = require("./degreeAuditService");
 const Enrollment = require("../models/enrollment");
+const Course = require("../models/courses");
 
 async function askLLM(studentId, question) {
   try {
@@ -16,12 +17,14 @@ async function askLLM(studentId, question) {
         - degree progress or remaining courses → return DEGREE_AUDIT
         - enrollment status or enrolled courses → return ENROLLMENTS
         - graduation eligibility → return GRADUATION_STATUS
+        - whether a student can enroll in a specific course, course eligibility, or prerequisites → return COURSE_ELIGIBILITY
         - anything else → return GENERAL
 
         Only return ONE of these labels exactly:
         DEGREE_AUDIT
         ENROLLMENTS
         GRADUATION_STATUS
+        COURSE_ELIGIBILITY
         GENERAL
 
         Do not explain. Do not add punctuation.
@@ -63,6 +66,30 @@ async function askLLM(studentId, question) {
       systemResponse = audit.creditsRemaining === 0 ? "You are eligible to graduate!"
           : `You still need ${audit.creditsRemaining} credits to graduate.`;
 
+    } else if (intent === "COURSE_ELIGIBILITY") {
+
+      const completedEnrollments = await Enrollment.find({
+        studentId,
+        status: "Completed",
+      }).select("courseId");
+      const completedIds = new Set(completedEnrollments.map((e) => e.courseId.toString()));
+
+      const allCourses = await Course.find().populate("prerequisites");
+      const eligible = [];
+      const blocked = [];
+
+      for (const course of allCourses) {
+        if (completedIds.has(course._id.toString())) continue;
+        const unmet = course.prerequisites.filter((p) => !completedIds.has(p._id.toString()));
+        if (unmet.length === 0) {
+          eligible.push(course.courseName);
+        } else {
+          blocked.push(`${course.courseName} (needs: ${unmet.map((p) => p.courseName).join(", ")})`);
+        }
+      }
+
+      systemResponse = `Courses you are eligible to enroll in:\n${eligible.join("\n") || "None"}\n\nCourses with unmet prerequisites:\n${blocked.join("\n") || "None"}`;
+
     } else {
 
       systemResponse = `
@@ -70,11 +97,13 @@ async function askLLM(studentId, question) {
         • Degree progress
         • Enrollment status
         • Graduation eligibility
+        • Course eligibility and prerequisites
 
         Try asking:
         - "What courses do I still need?"
         - "Am I eligible to graduate?"
         - "What am I enrolled in?"
+        - "Which courses can I enroll in?"
     `;
     }
 
