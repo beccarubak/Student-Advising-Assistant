@@ -26,6 +26,11 @@ interface Advisor {
   lastName: string;
 }
 
+interface DegreeProgramOption {
+  id: string;
+  programName: string;
+}
+
 interface DegreeAudit {
   totalCreditsRequired: number;
   creditsCompleted: number;
@@ -82,6 +87,12 @@ function AdvisorDashboard() {
   const [studentRequests, setStudentRequests] = useState<ChangeRequest[]>([]);
   const [newNote, setNewNote] = useState("");
   const [noteError, setNoteError] = useState("");
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [degreePrograms, setDegreePrograms] = useState<DegreeProgramOption[]>([]);
+  const [createForm, setCreateForm] = useState({
+    firstName: "", lastName: "", email: "", academicStatus: "Active", degreeProgramId: "",
+  });
+  const [createError, setCreateError] = useState("");
 
   const advisorId = getAdvisorIdFromToken();
 
@@ -115,6 +126,12 @@ function AdvisorDashboard() {
       }`,
     )
       .then((d) => setPendingRequests(d.getPendingChangeRequests))
+      .catch(console.error);
+
+    graphqlRequest<{ getDegreePrograms: DegreeProgramOption[] }>(
+      `query { getDegreePrograms { id programName } }`,
+    )
+      .then((d) => setDegreePrograms(d.getDegreePrograms))
       .catch(console.error);
   }, [advisorId]);
 
@@ -183,6 +200,38 @@ function AdvisorDashboard() {
       setNewNote("");
     } catch (err: any) {
       setNoteError(err.message);
+    }
+  };
+
+  const submitCreateStudent = async () => {
+    if (!createForm.firstName.trim() || !createForm.lastName.trim() || !createForm.email.trim()) {
+      setCreateError("First name, last name, and email are required.");
+      return;
+    }
+    setCreateError("");
+    try {
+      const input: Record<string, string> = {
+        firstName: createForm.firstName.trim(),
+        lastName: createForm.lastName.trim(),
+        email: createForm.email.trim(),
+        academicStatus: createForm.academicStatus,
+      };
+      if (createForm.degreeProgramId) input.degreeProgramId = createForm.degreeProgramId;
+
+      const data = await graphqlRequest<{ createStudent: Student }>(
+        `mutation CreateStudent($input: StudentInput!) {
+          createStudent(input: $input) {
+            id firstName lastName email academicStatus
+            degreeProgram { programName }
+          }
+        }`,
+        { input },
+      );
+      setStudents((prev) => [...prev, data.createStudent]);
+      setShowCreateModal(false);
+      setCreateForm({ firstName: "", lastName: "", email: "", academicStatus: "Active", degreeProgramId: "" });
+    } catch (err: any) {
+      setCreateError(err.message);
     }
   };
 
@@ -386,15 +435,27 @@ function AdvisorDashboard() {
               overflow: "hidden",
             }}
           >
-            <h3
-              style={{
-                margin: "0 0 14px 0",
-                fontSize: "1.2rem",
-                color: "#2E4053",
-              }}
-            >
-              Students
-            </h3>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <h3 style={{ margin: 0, fontSize: "1.2rem", color: "#2E4053" }}>
+                Students
+              </h3>
+              <button
+                onClick={() => { setShowCreateModal(true); setCreateError(""); }}
+                style={{
+                  fontSize: "0.85rem",
+                  padding: "5px 14px",
+                  cursor: "pointer",
+                  background: "#F1C40F",
+                  color: "#2E4053",
+                  border: "none",
+                  borderRadius: 6,
+                  fontWeight: "700",
+                  fontFamily: "inherit",
+                }}
+              >
+                + New Student
+              </button>
+            </div>
             <div style={{ overflowY: "auto", flex: 1 }}>
               {students.length === 0 && (
                 <p style={{ color: "#566573", fontSize: "0.9rem", margin: 0 }}>
@@ -801,6 +862,113 @@ function AdvisorDashboard() {
           )}
         </div>
       </div>
+
+      {/* Create Student Modal */}
+      {showCreateModal && (
+        <div
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)",
+            display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100,
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowCreateModal(false); }}
+        >
+          <div
+            style={{
+              background: "white", borderRadius: 10, padding: 32, width: 420,
+              boxShadow: "0 4px 24px rgba(0,0,0,0.18)",
+            }}
+          >
+            <h2 style={{ margin: "0 0 24px 0", fontSize: "1.2rem", color: "#2E4053" }}>
+              Create New Student
+            </h2>
+
+            {(["firstName", "lastName", "email"] as const).map((field) => (
+              <div key={field} style={{ marginBottom: 14 }}>
+                <label style={{ display: "block", fontSize: "0.85rem", color: "#566573", marginBottom: 4 }}>
+                  {field === "firstName" ? "First Name" : field === "lastName" ? "Last Name" : "Email"}
+                  {" "}<span style={{ color: "#c62828" }}>*</span>
+                </label>
+                <input
+                  type={field === "email" ? "email" : "text"}
+                  value={createForm[field]}
+                  onChange={(e) => setCreateForm((f) => ({ ...f, [field]: e.target.value }))}
+                  style={{
+                    width: "100%", boxSizing: "border-box", fontSize: "0.95rem",
+                    padding: "9px 12px", borderRadius: 6, border: "1px solid #BFC9CA", outline: "none",
+                    fontFamily: "inherit",
+                  }}
+                />
+              </div>
+            ))}
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: "block", fontSize: "0.85rem", color: "#566573", marginBottom: 4 }}>
+                Academic Status
+              </label>
+              <select
+                value={createForm.academicStatus}
+                onChange={(e) => setCreateForm((f) => ({ ...f, academicStatus: e.target.value }))}
+                style={{
+                  width: "100%", boxSizing: "border-box", fontSize: "0.95rem",
+                  padding: "9px 12px", borderRadius: 6, border: "1px solid #BFC9CA",
+                  outline: "none", background: "white", fontFamily: "inherit",
+                }}
+              >
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+                <option value="Graduated">Graduated</option>
+              </select>
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: "block", fontSize: "0.85rem", color: "#566573", marginBottom: 4 }}>
+                Degree Program
+              </label>
+              <select
+                value={createForm.degreeProgramId}
+                onChange={(e) => setCreateForm((f) => ({ ...f, degreeProgramId: e.target.value }))}
+                style={{
+                  width: "100%", boxSizing: "border-box", fontSize: "0.95rem",
+                  padding: "9px 12px", borderRadius: 6, border: "1px solid #BFC9CA",
+                  outline: "none", background: "white", fontFamily: "inherit",
+                }}
+              >
+                <option value="">— None —</option>
+                {degreePrograms.map((p) => (
+                  <option key={p.id} value={p.id}>{p.programName}</option>
+                ))}
+              </select>
+            </div>
+
+            {createError && (
+              <p style={{ color: "#c62828", fontSize: "0.85rem", marginBottom: 12 }}>{createError}</p>
+            )}
+
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                style={{
+                  fontSize: "0.95rem", padding: "9px 20px", cursor: "pointer",
+                  background: "transparent", color: "#566573", border: "1px solid #BFC9CA",
+                  borderRadius: 6, fontFamily: "inherit",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitCreateStudent}
+                style={{
+                  fontSize: "0.95rem", padding: "9px 20px", cursor: "pointer",
+                  background: "#F1C40F", color: "#2E4053", border: "none",
+                  borderRadius: 6, fontWeight: "700", fontFamily: "inherit",
+                }}
+              >
+                Create Student
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
