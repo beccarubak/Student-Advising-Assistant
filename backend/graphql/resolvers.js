@@ -33,6 +33,15 @@ const resolvers = {
       return await DegreeProgram.findById(id)
     },
 
+    //advisor queries
+    getAdvisors: async () => await Advisor.find(),
+    getAdvisor: async (_, { id }) => {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error("Invalid advisor ID");
+      }
+      return await Advisor.findById(id);
+    },
+
     //enrollment queries
     getEnrollments: async () => await Enrollment.find(),
     getStudentEnrollments: async (_, { studentId }) => {
@@ -161,6 +170,22 @@ const resolvers = {
       return await askLLM(context.studentId, question);
     },
 
+    //advisor mutations
+    createAdvisor: async (_, { input }) => {
+      const advisor = new Advisor(input);
+      return await advisor.save();
+    },
+    updateAdvisor: async (_, { id, input }) => {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error("Invalid advisor ID");
+      }
+      return await Advisor.findByIdAndUpdate(id, input, { new: true });
+    },
+    deleteAdvisor: async (_, { id }) => {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error("Invalid advisor ID");
+      }
+      await Advisor.findByIdAndDelete(id);
     //advising note mutations
     createAdvisingNote: async (_, { studentId, advisorId, note }) => {
       if (!mongoose.Types.ObjectId.isValid(studentId)) {
