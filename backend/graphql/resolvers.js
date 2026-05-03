@@ -160,19 +160,19 @@ const resolvers = {
   Mutation: {
     //student mutations
     createStudent: async (_, { input }, context) => {
-      requireRole(context, "admin");
+      requireRole(context, "advisor");
       const student = new Student(input);
       return await student.save();
     },
     updateStudent: async (_, { id, input }, context) => {
-      requireRole(context, "admin");
+      requireRole(context, "advisor");
       if (!mongoose.Types.ObjectId.isValid(id)) {
         throw new Error("Invalid student ID");
       }
       return await Student.findByIdAndUpdate(id, input, { new: true });
     },
     deleteStudent: async (_, { id }, context) => {
-      requireRole(context, "admin");
+      requireRole(context, "advisor");
       if (!mongoose.Types.ObjectId.isValid(id)) {
         throw new Error("Invalid student ID");
       }
@@ -182,12 +182,12 @@ const resolvers = {
 
     //course mutations
     createCourse: async (_, { courseCode, courseName, credits }, context) => {
-      requireRole(context, "admin");
+      requireRole(context, "advisor");
       const course = new Course({ courseCode, courseName, credits });
       return await course.save();
     },
     addRequiredCourse: async (_, { programId, courseId }, context) => {
-      requireRole(context, "admin");
+      requireRole(context, "advisor");
       if (!mongoose.Types.ObjectId.isValid(programId)) {
         throw new Error("Invalid degree program ID");
       }
@@ -209,7 +209,7 @@ const resolvers = {
 
     //degree program mutations
     createDegreeProgram: async (_, { programName, totalCreditsRequired }, context) => {
-      requireRole(context, "admin");
+      requireRole(context, "advisor");
       const program = new DegreeProgram({
         programName,
         totalCreditsRequired,
