@@ -369,7 +369,7 @@ function StudentDashboard() {
                   {[
                     "What courses can I take next?",
                     "Am I on track to graduate?",
-                    "What's my GPA?",
+                    "Enroll me in Algorithms",
                   ].map((suggestion) => (
                     <button
                       key={suggestion}
