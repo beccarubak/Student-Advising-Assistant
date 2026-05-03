@@ -21,7 +21,12 @@ const server = new ApolloServer({
       const token = authHeader.replace("Bearer ", "");
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      return { studentId: decoded.studentId };
+      return {
+        userId: decoded.userId,
+        role: decoded.role,
+        // keep studentId populated for student role so existing resolvers work
+        studentId: decoded.role === "student" ? decoded.userId : null,
+      };
     } catch {
       return {};
     }

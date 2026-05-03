@@ -3,6 +3,7 @@ const { gql } = require("apollo-server");
 const authTypeDefs = gql`
     type AuthPayload {
         token: String!
+        role: String!
     }
     extend type Mutation {
         login(email: String!): AuthPayload

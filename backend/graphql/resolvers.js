@@ -8,6 +8,7 @@ const AdvisingNote = require("../models/advisingNotes");
 const { calculateDegreeAudit } = require("../services/degreeAuditService");
 const { enrollStudentWithValidation, updateEnrollmentStatus } = require("../services/enrollmentService");
 const { askLLM } = require("../services/llmService");
+const { requireRole } = require("../services/authService");
 const jwt = require("jsonwebtoken");
 
 
@@ -137,17 +138,20 @@ const resolvers = {
 
   Mutation: {
     //student mutations
-    createStudent: async (_, { input }) => {
+    createStudent: async (_, { input }, context) => {
+      requireRole(context, "admin");
       const student = new Student(input);
       return await student.save();
     },
-    updateStudent: async (_, { id, input }) =>{
+    updateStudent: async (_, { id, input }, context) => {
+      requireRole(context, "admin");
       if (!mongoose.Types.ObjectId.isValid(id)) {
         throw new Error("Invalid student ID");
       }
-      return await Student.findByIdAndUpdate(id, input, { new: true })
+      return await Student.findByIdAndUpdate(id, input, { new: true });
     },
-    deleteStudent: async (_, { id }) => {
+    deleteStudent: async (_, { id }, context) => {
+      requireRole(context, "admin");
       if (!mongoose.Types.ObjectId.isValid(id)) {
         throw new Error("Invalid student ID");
       }
@@ -156,11 +160,13 @@ const resolvers = {
     },
 
     //course mutations
-    createCourse: async (_, { courseCode, courseName, credits }) => {
+    createCourse: async (_, { courseCode, courseName, credits }, context) => {
+      requireRole(context, "admin");
       const course = new Course({ courseCode, courseName, credits });
       return await course.save();
     },
-    addRequiredCourse: async (_, { programId, courseId }) => {
+    addRequiredCourse: async (_, { programId, courseId }, context) => {
+      requireRole(context, "admin");
       if (!mongoose.Types.ObjectId.isValid(programId)) {
         throw new Error("Invalid degree program ID");
       }
@@ -181,7 +187,8 @@ const resolvers = {
     },
 
     //degree program mutations
-    createDegreeProgram: async (_, { programName, totalCreditsRequired }) => {
+    createDegreeProgram: async (_, { programName, totalCreditsRequired }, context) => {
+      requireRole(context, "admin");
       const program = new DegreeProgram({
         programName,
         totalCreditsRequired,
@@ -201,9 +208,7 @@ const resolvers = {
 
      //chat mutations
     askQuestion: async (_, { question }, context) => {
-      if (!context.studentId) {
-        throw new Error("Not authenticated");
-      }
+      requireRole(context, "student");
       
       return await askLLM(context.studentId, question);
     },
@@ -271,18 +276,26 @@ const resolvers = {
     //login mutation
     login: async (_, { email }) => {
       const student = await Student.findOne({ email });
-
-      if (!student) {
-        throw new Error("Student not found");
+      if (student) {
+        const token = jwt.sign(
+          { userId: student._id, role: "student" },
+          process.env.JWT_SECRET,
+          { expiresIn: "1h" }
+        );
+        return { token, role: "student" };
       }
 
-      const token = jwt.sign(
-        { studentId: student._id },
-        process.env.JWT_SECRET,
-        { expiresIn: "1h" }
-      );
+      const advisor = await Advisor.findOne({ email });
+      if (advisor) {
+        const token = jwt.sign(
+          { userId: advisor._id, role: "advisor" },
+          process.env.JWT_SECRET,
+          { expiresIn: "1h" }
+        );
+        return { token, role: "advisor" };
+      }
 
-      return { token };
+      throw new Error("No account found with that email");
     },
   },
 
