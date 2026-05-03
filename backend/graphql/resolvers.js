@@ -4,6 +4,7 @@ const Course = require("../models/courses");
 const DegreeProgram = require("../models/degreePrograms");
 const Enrollment = require("../models/enrollment");
 const Advisor = require("../models/advisor");
+const AdvisingNote = require("../models/advisingNotes");
 const { calculateDegreeAudit } = require("../services/degreeAuditService");
 const { enrollStudentWithValidation, updateEnrollmentStatus } = require("../services/enrollmentService");
 const { askLLM } = require("../services/llmService");
@@ -50,9 +51,55 @@ const resolvers = {
       return await Enrollment.find({ studentId });
     },
 
+    //advising note queries
+    getAdvisingNotes: async (_, { studentId }) => {
+      if (!mongoose.Types.ObjectId.isValid(studentId)) {
+        throw new Error("Invalid student ID");
+      }
+      return await AdvisingNote.find({ studentId });
+    },
+
     //degree audit query
     getDegreeAudit: async (_, { studentId }) =>
       await calculateDegreeAudit(studentId),
+
+    //students nearing graduation report
+    getStudentsNearingGraduation: async (_, { threshold = 9 }) => {
+      const results = await Student.aggregate([
+        { $match: { academicStatus: "Active" } },
+        {
+          $lookup: {
+            from: "enrollments",
+            let: { sid: "$_id" },
+            pipeline: [
+              { $match: { $expr: { $and: [{ $eq: ["$studentId", "$$sid"] }, { $eq: ["$status", "Completed"] }] } } },
+              { $lookup: { from: "courses", localField: "courseId", foreignField: "_id", as: "course" } },
+              { $unwind: "$course" },
+              { $project: { credits: "$course.credits" } },
+            ],
+            as: "completedEnrollments",
+          },
+        },
+        { $addFields: { creditsCompleted: { $sum: "$completedEnrollments.credits" } } },
+        { $lookup: { from: "degreeprograms", localField: "degreeProgramId", foreignField: "_id", as: "degreeProgram" } },
+        { $unwind: "$degreeProgram" },
+        { $addFields: { creditsRemaining: { $subtract: ["$degreeProgram.totalCreditsRequired", "$creditsCompleted"] } } },
+        { $match: { creditsRemaining: { $lte: threshold, $gte: 0 } } },
+        {
+          $project: {
+            studentId: "$_id",
+            firstName: 1,
+            lastName: 1,
+            email: 1,
+            programName: "$degreeProgram.programName",
+            totalCreditsRequired: "$degreeProgram.totalCreditsRequired",
+            creditsCompleted: 1,
+            creditsRemaining: 1,
+          },
+        },
+      ]);
+      return results;
+    },
 
     //course enrollement summary query
     getCourseEnrollmentSummary: async () => {
@@ -182,6 +229,8 @@ const resolvers = {
 
     //student-advisor assignment
     assignAdvisor: async (_, { studentId, advisorId }) => {
+    //advising note mutations
+    createAdvisingNote: async (_, { studentId, advisorId, note }) => {
       if (!mongoose.Types.ObjectId.isValid(studentId)) {
         throw new Error("Invalid student ID");
       }
@@ -195,6 +244,20 @@ const resolvers = {
         { advisorId },
         { new: true }
       );
+      const student = await Student.findById(studentId);
+      if (!student) throw new Error("Student not found");
+      const advisor = await Advisor.findById(advisorId);
+      if (!advisor) throw new Error("Advisor not found");
+
+      const advisingNote = new AdvisingNote({ studentId, advisorId, note });
+      return await advisingNote.save();
+    },
+    deleteAdvisingNote: async (_, { id }) => {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error("Invalid advising note ID");
+      }
+      await AdvisingNote.findByIdAndDelete(id);
+      return true;
     },
 
     //login mutation
@@ -233,6 +296,11 @@ const resolvers = {
   DegreeProgram: {
     requiredCourses: async (parent) =>
       await Course.find({ _id: { $in: parent.requiredCourses } }),
+  },
+
+  AdvisingNote: {
+    student: async (parent) => await Student.findById(parent.studentId),
+    advisor: async (parent) => await Advisor.findById(parent.advisorId),
   },
 };
 

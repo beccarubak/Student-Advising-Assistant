@@ -23,6 +23,24 @@ async function enrollStudentWithValidation(studentId, courseId, term) {
     throw new Error("Course not found");
   }
 
+  if (course.prerequisites && course.prerequisites.length > 0) {
+    const completedEnrollments = await Enrollment.find({
+      studentId,
+      status: "Completed",
+    }).select("courseId");
+
+    const completedIds = completedEnrollments.map((e) => e.courseId.toString());
+    const unmet = course.prerequisites.filter(
+      (prereqId) => !completedIds.includes(prereqId.toString())
+    );
+
+    if (unmet.length > 0) {
+      const prereqCourses = await Course.find({ _id: { $in: unmet } });
+      const names = prereqCourses.map((c) => c.courseName).join(", ");
+      throw new Error(`Prerequisites not completed: ${names}`);
+    }
+  }
+
   const existingEnrollment = await Enrollment.findOne({
     studentId,
     courseId,
