@@ -2,7 +2,8 @@ const mongoose = require("mongoose");
 const Student = require("../models/student");
 const Course = require("../models/courses");
 const DegreeProgram = require("../models/degreePrograms");
-const Enrollment = require("../models/enrollment"); 
+const Enrollment = require("../models/enrollment");
+const Advisor = require("../models/advisor");
 const { calculateDegreeAudit } = require("../services/degreeAuditService");
 const { enrollStudentWithValidation, updateEnrollmentStatus } = require("../services/enrollmentService");
 const { askLLM } = require("../services/llmService");
@@ -29,6 +30,15 @@ const resolvers = {
         throw new Error("Invalid degree program ID");
       }
       return await DegreeProgram.findById(id)
+    },
+
+    //advisor queries
+    getAdvisors: async () => await Advisor.find(),
+    getAdvisor: async (_, { id }) => {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error("Invalid advisor ID");
+      }
+      return await Advisor.findById(id);
     },
 
     //enrollment queries
@@ -149,6 +159,25 @@ const resolvers = {
       }
       
       return await askLLM(context.studentId, question);
+    },
+
+    //advisor mutations
+    createAdvisor: async (_, { input }) => {
+      const advisor = new Advisor(input);
+      return await advisor.save();
+    },
+    updateAdvisor: async (_, { id, input }) => {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error("Invalid advisor ID");
+      }
+      return await Advisor.findByIdAndUpdate(id, input, { new: true });
+    },
+    deleteAdvisor: async (_, { id }) => {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error("Invalid advisor ID");
+      }
+      await Advisor.findByIdAndDelete(id);
+      return true;
     },
 
     //login mutation
