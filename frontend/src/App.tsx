@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Login from "./pages/Login";
 import StudentDashboard from "./pages/StudentDashboard";
+import AdvisorDashboard from "./pages/AdvisorDashboard";
 
 function App() {
   const [role, setRole] = useState(localStorage.getItem("role"));
@@ -9,7 +10,7 @@ function App() {
 
   if (role === "student") return <StudentDashboard />;
 
-  if (role === "advisor") return <div style={{ padding: 40, textAlign: "center" }}><h2>Advisor dashboard coming soon</h2></div>;
+  if (role === "advisor") return <AdvisorDashboard />;
 
   return (
     <div style={{ padding: 40, alignItems: "center", textAlign: "center" }}>
