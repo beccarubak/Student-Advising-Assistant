@@ -4,6 +4,7 @@ const Course = require("../models/courses");
 const DegreeProgram = require("../models/degreePrograms");
 const Enrollment = require("../models/enrollment");
 const Advisor = require("../models/advisor");
+const AdvisingNote = require("../models/advisingNotes");
 const { calculateDegreeAudit } = require("../services/degreeAuditService");
 const { enrollStudentWithValidation, updateEnrollmentStatus } = require("../services/enrollmentService");
 const { askLLM } = require("../services/llmService");
@@ -48,6 +49,14 @@ const resolvers = {
         throw new Error("Invalid student ID");
       }
       return await Enrollment.find({ studentId });
+    },
+
+    //advising note queries
+    getAdvisingNotes: async (_, { studentId }) => {
+      if (!mongoose.Types.ObjectId.isValid(studentId)) {
+        throw new Error("Invalid student ID");
+      }
+      return await AdvisingNote.find({ studentId });
     },
 
     //degree audit query
@@ -177,6 +186,27 @@ const resolvers = {
         throw new Error("Invalid advisor ID");
       }
       await Advisor.findByIdAndDelete(id);
+    //advising note mutations
+    createAdvisingNote: async (_, { studentId, advisorId, note }) => {
+      if (!mongoose.Types.ObjectId.isValid(studentId)) {
+        throw new Error("Invalid student ID");
+      }
+      if (!mongoose.Types.ObjectId.isValid(advisorId)) {
+        throw new Error("Invalid advisor ID");
+      }
+      const student = await Student.findById(studentId);
+      if (!student) throw new Error("Student not found");
+      const advisor = await Advisor.findById(advisorId);
+      if (!advisor) throw new Error("Advisor not found");
+
+      const advisingNote = new AdvisingNote({ studentId, advisorId, note });
+      return await advisingNote.save();
+    },
+    deleteAdvisingNote: async (_, { id }) => {
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error("Invalid advising note ID");
+      }
+      await AdvisingNote.findByIdAndDelete(id);
       return true;
     },
 
@@ -214,6 +244,11 @@ const resolvers = {
   DegreeProgram: {
     requiredCourses: async (parent) =>
       await Course.find({ _id: { $in: parent.requiredCourses } }),
+  },
+
+  AdvisingNote: {
+    student: async (parent) => await Student.findById(parent.studentId),
+    advisor: async (parent) => await Advisor.findById(parent.advisorId),
   },
 };
 
