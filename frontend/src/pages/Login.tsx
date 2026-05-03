@@ -37,10 +37,11 @@ function Login({ onLogin }: { onLogin: (role: string) => void }) {
       {/* Navbar */}
       <div style={{
         background: "#1a237e",
-        padding: "14px 32px",
+        padding: "20px 32px",
         color: "white",
-        fontSize: "1.3rem",
+        fontSize: "2rem",
         fontWeight: "bold",
+        textAlign: "center",
       }}>
         Academic Advising Portal
       </div>
