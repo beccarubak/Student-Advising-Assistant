@@ -17,12 +17,20 @@ const jwt = require("jsonwebtoken");
 const resolvers = {
   Query: {
     //student queries
-    getStudents: async () => await Student.find(),
-    getStudent: async (_, { id }) =>{
+    getStudents: async (_, __, context) => {
+      requireRole(context, "advisor");
+      return await Student.find();
+    },
+    getStudent: async (_, { id }, context) => {
       if (!mongoose.Types.ObjectId.isValid(id)) {
         throw new Error("Invalid student ID");
       }
-      return await Student.findById(id)},
+      if (context.role === "student" && context.userId !== id) {
+        throw new Error("Unauthorized");
+      }
+      if (!context.role) throw new Error("Unauthorized");
+      return await Student.findById(id);
+    },
 
     //course queries
     getCourses: async () => await Course.find(),
@@ -46,19 +54,30 @@ const resolvers = {
     },
 
     //enrollment queries
-    getEnrollments: async () => await Enrollment.find(),
-    getStudentEnrollments: async (_, { studentId }) => {
+    getEnrollments: async (_, __, context) => {
+      requireRole(context, "advisor");
+      return await Enrollment.find();
+    },
+    getStudentEnrollments: async (_, { studentId }, context) => {
       if (!mongoose.Types.ObjectId.isValid(studentId)) {
         throw new Error("Invalid student ID");
       }
+      if (context.role === "student" && context.userId !== studentId) {
+        throw new Error("Unauthorized");
+      }
+      if (!context.role) throw new Error("Unauthorized");
       return await Enrollment.find({ studentId });
     },
 
     //advising note queries
-    getAdvisingNotes: async (_, { studentId }) => {
+    getAdvisingNotes: async (_, { studentId }, context) => {
       if (!mongoose.Types.ObjectId.isValid(studentId)) {
         throw new Error("Invalid student ID");
       }
+      if (context.role === "student" && context.userId !== studentId) {
+        throw new Error("Unauthorized");
+      }
+      if (!context.role) throw new Error("Unauthorized");
       return await AdvisingNote.find({ studentId });
     },
 
@@ -82,11 +101,17 @@ const resolvers = {
     },
 
     //degree audit query
-    getDegreeAudit: async (_, { studentId }) =>
-      await calculateDegreeAudit(studentId),
+    getDegreeAudit: async (_, { studentId }, context) => {
+      if (context.role === "student" && context.userId !== studentId) {
+        throw new Error("Unauthorized");
+      }
+      if (!context.role) throw new Error("Unauthorized");
+      return await calculateDegreeAudit(studentId);
+    },
 
     //students nearing graduation report
-    getStudentsNearingGraduation: async (_, { threshold = 9 }) => {
+    getStudentsNearingGraduation: async (_, { threshold = 9 }, context) => {
+      requireRole(context, "advisor");
       const results = await Student.aggregate([
         { $match: { academicStatus: "Active" } },
         {
@@ -124,7 +149,8 @@ const resolvers = {
     },
 
     //course enrollement summary query
-    getCourseEnrollmentSummary: async () => {
+    getCourseEnrollmentSummary: async (_, __, context) => {
+      requireRole(context, "advisor");
       const summary = await Enrollment.aggregate([
         //active enrollments
         { $match: { status: "Enrolled" } },
