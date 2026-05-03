@@ -227,6 +227,8 @@ const resolvers = {
       return true;
     },
 
+    //student-advisor assignment
+    assignAdvisor: async (_, { studentId, advisorId }) => {
     //advising note mutations
     createAdvisingNote: async (_, { studentId, advisorId, note }) => {
       if (!mongoose.Types.ObjectId.isValid(studentId)) {
@@ -235,6 +237,13 @@ const resolvers = {
       if (!mongoose.Types.ObjectId.isValid(advisorId)) {
         throw new Error("Invalid advisor ID");
       }
+      const advisor = await Advisor.findById(advisorId);
+      if (!advisor) throw new Error("Advisor not found");
+      return await Student.findByIdAndUpdate(
+        studentId,
+        { advisorId },
+        { new: true }
+      );
       const student = await Student.findById(studentId);
       if (!student) throw new Error("Student not found");
       const advisor = await Advisor.findById(advisorId);
@@ -273,6 +282,8 @@ const resolvers = {
   Student: {
     degreeProgram: async (parent) =>
       await DegreeProgram.findById(parent.degreeProgramId),
+    advisor: async (parent) =>
+      parent.advisorId ? await Advisor.findById(parent.advisorId) : null,
   },
 
   Enrollment: {

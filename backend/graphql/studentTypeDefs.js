@@ -8,6 +8,7 @@ const studentTypeDefs = gql`
     email: String!
     academicStatus: String
     degreeProgram: DegreeProgram
+    advisor: Advisor
   }
 
   type Query {
@@ -27,6 +28,7 @@ const studentTypeDefs = gql`
     createStudent(input: StudentInput!): Student
     updateStudent(id: ID!, input: StudentInput!): Student
     deleteStudent(id: ID!): Boolean
+    assignAdvisor(studentId: ID!, advisorId: ID!): Student
   }
 `;
 
