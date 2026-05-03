@@ -119,13 +119,17 @@ function StudentDashboard() {
 
       {/* Navbar */}
       <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
+        display: "flex", alignItems: "center",
         padding: "14px 32px", background: "#2E4053", color: "white",
+        position: "relative",
       }}>
-        <span style={{ fontSize: "1.3rem", fontWeight: "bold" }}>Academic Advising Portal</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+        <div style={{ flex: 1 }} />
+        <span style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", fontSize: "1.3rem", fontWeight: "bold" }}>
+          Academic Advising Portal
+        </span>
+        <div style={{ flex: 1, display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 20 }}>
           {student && (
-            <span style={{ fontSize: "1rem" }}>
+            <span style={{ fontSize: "1.2rem", fontWeight: "500" }}>
               {student.firstName} {student.lastName}
             </span>
           )}
@@ -147,15 +151,13 @@ function StudentDashboard() {
           {student?.degreeProgram?.programName ?? "Loading degree program..."}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div style={{
-            flex: 1, background: "#BFC9CA", borderRadius: 8, height: 22, overflow: "hidden",
-          }}>
+          <div style={{ flex: 1, background: "#BFC9CA", borderRadius: 8, height: 22, overflow: "hidden" }}>
             <div style={{
-              background: "#F1C40F", height: "100%", borderRadius: 8,
+              background: "#43a047", height: "100%", borderRadius: 8,
               width: `${progressPct}%`, transition: "width 0.6s ease",
             }} />
           </div>
-          <span style={{ fontSize: "0.95rem", whiteSpace: "nowrap", color: "#AAB7B8", minWidth: 130 }}>
+          <span style={{ fontSize: "0.95rem", whiteSpace: "nowrap", color: "#566573", minWidth: 130 }}>
             {audit
               ? `${audit.creditsCompleted} / ${audit.totalCreditsRequired} credits completed`
               : "Loading..."}
@@ -176,7 +178,7 @@ function StudentDashboard() {
             My Courses
           </h3>
           {enrollments.length === 0 && (
-            <p style={{ color: "#AAB7B8", fontSize: "0.9rem" }}>No enrollments found.</p>
+            <p style={{ color: "#566573", fontSize: "0.9rem" }}>No enrollments found.</p>
           )}
           {enrollments.map((e) => (
             <div key={e.id} style={{
@@ -184,7 +186,7 @@ function StudentDashboard() {
               background: "#fafafa", border: "1px solid #BFC9CA",
             }}>
               <div style={{ fontWeight: "600", fontSize: "0.95rem" }}>{e.course.courseName}</div>
-              <div style={{ fontSize: "0.82rem", color: "#AAB7B8", marginTop: 3 }}>
+              <div style={{ fontSize: "0.82rem", color: "#566573", marginTop: 3 }}>
                 {e.course.courseCode} &middot; {e.term}
               </div>
               <div style={{ marginTop: 7, display: "flex", alignItems: "center", gap: 8 }}>
@@ -195,7 +197,7 @@ function StudentDashboard() {
                   {e.status}
                 </span>
                 {e.grade && (
-                  <span style={{ fontSize: "0.82rem", color: "#AAB7B8" }}>Grade: {e.grade}</span>
+                  <span style={{ fontSize: "0.82rem", color: "#566573" }}>Grade: {e.grade}</span>
                 )}
               </div>
             </div>
@@ -217,16 +219,16 @@ function StudentDashboard() {
             borderRadius: 6, padding: 16, marginBottom: 16, background: "#fafafa",
           }}>
             {messages.length === 0 && (
-              <p style={{ color: "#BFC9CA", fontSize: "0.9rem", margin: 0 }}>
+              <p style={{ color: "#717D7E", fontSize: "1rem", margin: 0 }}>
                 Ask about your degree progress, course eligibility, or graduation status.
               </p>
             )}
             {messages.map((m, i) => (
               <div key={i} style={{ marginBottom: 20 }}>
-                <div style={{ fontWeight: "bold", color: "#2E4053", marginBottom: 3 }}>You</div>
-                <div style={{ marginBottom: 10, fontSize: "0.95rem" }}>{m.user}</div>
-                <div style={{ fontWeight: "bold", color: "#AAB7B8", marginBottom: 3 }}>Advisor</div>
-                <div style={{ whiteSpace: "pre-line", fontSize: "0.95rem" }}>{m.bot}</div>
+                <div style={{ fontWeight: "bold", color: "#2E4053", marginBottom: 3, fontSize: "1.05rem" }}>You</div>
+                <div style={{ marginBottom: 10, fontSize: "1.05rem" }}>{m.user}</div>
+                <div style={{ fontWeight: "bold", color: "#566573", marginBottom: 3, fontSize: "1.05rem" }}>Advisor</div>
+                <div style={{ whiteSpace: "pre-line", fontSize: "1.05rem" }}>{m.bot}</div>
               </div>
             ))}
           </div>

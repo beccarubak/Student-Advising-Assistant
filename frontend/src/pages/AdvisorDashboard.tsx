@@ -21,6 +21,11 @@ interface Student {
   degreeProgram: DegreeProgram | null;
 }
 
+interface Advisor {
+  firstName: string;
+  lastName: string;
+}
+
 interface DegreeAudit {
   totalCreditsRequired: number;
   creditsCompleted: number;
@@ -68,6 +73,7 @@ function academicStatusColor(status: string): string {
 }
 
 function AdvisorDashboard() {
+  const [advisor, setAdvisor] = useState<Advisor | null>(null);
   const [students, setStudents] = useState<Student[]>([]);
   const [pendingRequests, setPendingRequests] = useState<ChangeRequest[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -80,6 +86,15 @@ function AdvisorDashboard() {
   const advisorId = getAdvisorIdFromToken();
 
   useEffect(() => {
+    graphqlRequest<{ getAdvisor: Advisor }>(
+      `query GetAdvisor($id: ID!) {
+        getAdvisor(id: $id) { firstName lastName }
+      }`,
+      { id: advisorId }
+    )
+      .then((d) => setAdvisor(d.getAdvisor))
+      .catch(console.error);
+
     graphqlRequest<{ getStudents: Student[] }>(
       `query {
         getStudents {
@@ -101,7 +116,7 @@ function AdvisorDashboard() {
     )
       .then((d) => setPendingRequests(d.getPendingChangeRequests))
       .catch(console.error);
-  }, []);
+  }, [advisorId]);
 
   const loadStudent = async (student: Student) => {
     setSelectedStudent(student);
@@ -189,19 +204,30 @@ function AdvisorDashboard() {
 
       {/* Navbar */}
       <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
+        display: "flex", alignItems: "center",
         padding: "14px 32px", background: "#2E4053", color: "white",
+        position: "relative",
       }}>
-        <span style={{ fontSize: "1.3rem", fontWeight: "bold" }}>Academic Advising Portal</span>
-        <button
-          onClick={logout}
-          style={{
-            background: "transparent", border: "1px solid white", color: "white",
-            padding: "6px 14px", cursor: "pointer", borderRadius: 4, fontSize: "0.9rem",
-          }}
-        >
-          Logout
-        </button>
+        <div style={{ flex: 1 }} />
+        <span style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", fontSize: "1.3rem", fontWeight: "bold" }}>
+          Academic Advising Portal
+        </span>
+        <div style={{ flex: 1, display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 20 }}>
+          {advisor && (
+            <span style={{ fontSize: "1.2rem", fontWeight: "500" }}>
+              {advisor.firstName} {advisor.lastName}
+            </span>
+          )}
+          <button
+            onClick={logout}
+            style={{
+              background: "transparent", border: "1px solid white", color: "white",
+              padding: "6px 14px", cursor: "pointer", borderRadius: 4, fontSize: "0.9rem",
+            }}
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
       {/* Main Content */}
@@ -226,7 +252,7 @@ function AdvisorDashboard() {
             </h3>
             <div style={{ overflowY: "auto", flex: 1 }}>
               {pendingRequests.length === 0 && (
-                <p style={{ color: "#AAB7B8", fontSize: "0.9rem", margin: 0 }}>No pending requests.</p>
+                <p style={{ color: "#566573", fontSize: "0.9rem", margin: 0 }}>No pending requests.</p>
               )}
               {pendingRequests.map((r) => (
                 <div
@@ -243,10 +269,10 @@ function AdvisorDashboard() {
                   <div style={{ fontWeight: "600", fontSize: "0.9rem", color: "#2E4053" }}>
                     {r.student.firstName} {r.student.lastName}
                   </div>
-                  <div style={{ fontSize: "0.82rem", color: "#AAB7B8", marginTop: 3 }}>
+                  <div style={{ fontSize: "0.82rem", color: "#566573", marginTop: 3 }}>
                     {r.requestType.replace("_", " ")}
                   </div>
-                  <div style={{ fontSize: "0.8rem", color: "#BFC9CA", marginTop: 2 }}>
+                  <div style={{ fontSize: "0.8rem", color: "#717D7E", marginTop: 2 }}>
                     {formatDate(r.createdAt)}
                   </div>
                 </div>
@@ -263,7 +289,7 @@ function AdvisorDashboard() {
             <h3 style={{ margin: "0 0 14px 0", fontSize: "1rem", color: "#2E4053" }}>Students</h3>
             <div style={{ overflowY: "auto", flex: 1 }}>
               {students.length === 0 && (
-                <p style={{ color: "#AAB7B8", fontSize: "0.9rem", margin: 0 }}>No students found.</p>
+                <p style={{ color: "#566573", fontSize: "0.9rem", margin: 0 }}>No students found.</p>
               )}
               {students.map((s) => (
                 <div
@@ -278,7 +304,7 @@ function AdvisorDashboard() {
                   <div style={{ fontWeight: "600", fontSize: "0.9rem", color: "#2E4053" }}>
                     {s.firstName} {s.lastName}
                   </div>
-                  <div style={{ fontSize: "0.82rem", color: "#AAB7B8", marginTop: 3 }}>
+                  <div style={{ fontSize: "0.82rem", color: "#566573", marginTop: 3 }}>
                     {s.degreeProgram?.programName ?? "No program"}
                   </div>
                   <div style={{ marginTop: 6 }}>
@@ -302,7 +328,7 @@ function AdvisorDashboard() {
           overflowY: "auto",
         }}>
           {!selectedStudent ? (
-            <div style={{ color: "#BFC9CA", fontSize: "1rem", marginTop: 40, textAlign: "center" }}>
+            <div style={{ color: "#717D7E", fontSize: "1rem", marginTop: 40, textAlign: "center" }}>
               Select a student to view their details
             </div>
           ) : (
@@ -312,7 +338,7 @@ function AdvisorDashboard() {
                 <h2 style={{ margin: "0 0 6px 0", fontSize: "1.4rem", color: "#2E4053" }}>
                   {selectedStudent.firstName} {selectedStudent.lastName}
                 </h2>
-                <div style={{ fontSize: "0.9rem", color: "#AAB7B8", marginBottom: 6 }}>
+                <div style={{ fontSize: "0.9rem", color: "#566573", marginBottom: 6 }}>
                   {selectedStudent.email}
                 </div>
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
@@ -323,7 +349,7 @@ function AdvisorDashboard() {
                     {selectedStudent.academicStatus}
                   </span>
                   {selectedStudent.degreeProgram && (
-                    <span style={{ fontSize: "0.9rem", color: "#AAB7B8" }}>
+                    <span style={{ fontSize: "0.9rem", color: "#566573" }}>
                       {selectedStudent.degreeProgram.programName}
                     </span>
                   )}
@@ -334,23 +360,23 @@ function AdvisorDashboard() {
               <div style={{ marginBottom: 28 }}>
                 <h3 style={{ margin: "0 0 12px 0", fontSize: "1rem", color: "#2E4053" }}>Degree Progress</h3>
                 {!audit ? (
-                  <p style={{ color: "#AAB7B8", fontSize: "0.9rem" }}>Loading...</p>
+                  <p style={{ color: "#566573", fontSize: "0.9rem" }}>Loading...</p>
                 ) : (
                   <>
                     <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 14 }}>
                       <div style={{ flex: 1, background: "#BFC9CA", borderRadius: 8, height: 20, overflow: "hidden" }}>
                         <div style={{
-                          background: "#F1C40F", height: "100%", borderRadius: 8,
+                          background: "#43a047", height: "100%", borderRadius: 8,
                           width: `${progressPct}%`, transition: "width 0.6s ease",
                         }} />
                       </div>
-                      <span style={{ fontSize: "0.9rem", whiteSpace: "nowrap", color: "#AAB7B8" }}>
+                      <span style={{ fontSize: "0.9rem", whiteSpace: "nowrap", color: "#566573" }}>
                         {audit.creditsCompleted} / {audit.totalCreditsRequired} credits
                       </span>
                     </div>
                     {audit.remainingCourses.length > 0 && (
                       <>
-                        <div style={{ fontSize: "0.85rem", color: "#AAB7B8", marginBottom: 8 }}>
+                        <div style={{ fontSize: "0.85rem", color: "#566573", marginBottom: 8 }}>
                           Remaining required courses:
                         </div>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -378,7 +404,7 @@ function AdvisorDashboard() {
               <div style={{ marginBottom: 28 }}>
                 <h3 style={{ margin: "0 0 12px 0", fontSize: "1rem", color: "#2E4053" }}>Change Requests</h3>
                 {studentRequests.length === 0 ? (
-                  <p style={{ color: "#AAB7B8", fontSize: "0.9rem" }}>No change requests.</p>
+                  <p style={{ color: "#566573", fontSize: "0.9rem" }}>No change requests.</p>
                 ) : (
                   studentRequests.map((r) => (
                     <div key={r.id} style={{
@@ -398,17 +424,17 @@ function AdvisorDashboard() {
                           {r.status}
                         </span>
                       </div>
-                      <div style={{ fontSize: "0.85rem", color: "#AAB7B8", marginTop: 6 }}>
-                        <span style={{ color: "#BFC9CA" }}>From:</span> {r.currentValue}
-                        <span style={{ margin: "0 8px", color: "#BFC9CA" }}>→</span>
+                      <div style={{ fontSize: "0.85rem", color: "#566573", marginTop: 6 }}>
+                        <span style={{ color: "#717D7E" }}>From:</span> {r.currentValue}
+                        <span style={{ margin: "0 8px", color: "#717D7E" }}>→</span>
                         {r.proposedValue}
                       </div>
                       {r.advisorNotes && (
-                        <div style={{ fontSize: "0.82rem", color: "#AAB7B8", marginTop: 6, fontStyle: "italic" }}>
+                        <div style={{ fontSize: "0.82rem", color: "#566573", marginTop: 6, fontStyle: "italic" }}>
                           Note: {r.advisorNotes}
                         </div>
                       )}
-                      <div style={{ fontSize: "0.78rem", color: "#BFC9CA", marginTop: 6 }}>
+                      <div style={{ fontSize: "0.78rem", color: "#717D7E", marginTop: 6 }}>
                         {formatDate(r.createdAt)}
                       </div>
                     </div>
@@ -420,7 +446,7 @@ function AdvisorDashboard() {
               <div>
                 <h3 style={{ margin: "0 0 12px 0", fontSize: "1rem", color: "#2E4053" }}>Advising Notes</h3>
                 {notes.length === 0 && (
-                  <p style={{ color: "#AAB7B8", fontSize: "0.9rem" }}>No notes yet.</p>
+                  <p style={{ color: "#566573", fontSize: "0.9rem" }}>No notes yet.</p>
                 )}
                 {notes.map((n) => (
                   <div key={n.id} style={{
@@ -428,7 +454,7 @@ function AdvisorDashboard() {
                     background: "#fafafa", border: "1px solid #BFC9CA",
                   }}>
                     <div style={{ fontSize: "0.9rem", color: "#2E4053" }}>{n.note}</div>
-                    <div style={{ fontSize: "0.78rem", color: "#BFC9CA", marginTop: 6 }}>
+                    <div style={{ fontSize: "0.78rem", color: "#717D7E", marginTop: 6 }}>
                       {formatDate(n.createdAt)}
                     </div>
                   </div>
