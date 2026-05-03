@@ -6,7 +6,11 @@ const advisingNoteSchema = new mongoose.Schema({
     ref: "Student",
     required: true,
   },
-  advisorName: { type: String, required: true },
+  advisorId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Advisor",
+    required: true,
+  },
   note: { type: String, required: true },
   createdAt: {
     type: Date,

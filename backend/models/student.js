@@ -10,6 +10,12 @@ const studentSchema = new mongoose.Schema({
     ref: "DegreeProgram",
   },
 
+  advisorId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Advisor",
+    default: null,
+  },
+
   academicStatus: { type: String, enum: ["Active", "Graduated", "Suspended"],default: "Active" },
 
   createdAt: {
