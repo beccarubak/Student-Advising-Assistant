@@ -9,7 +9,7 @@ const ChangeRequest = require("../models/changeRequest");
 const Message = require("../models/message");
 const { calculateDegreeAudit } = require("../services/degreeAuditService");
 const { enrollStudentWithValidation, updateEnrollmentStatus } = require("../services/enrollmentService");
-const { askLLM } = require("../services/llmService");
+const { askLLM, askAdvisorLLM } = require("../services/llmService");
 const { requireRole } = require("../services/authService");
 const jwt = require("jsonwebtoken");
 
@@ -260,8 +260,11 @@ const resolvers = {
      //chat mutations
     askQuestion: async (_, { question }, context) => {
       requireRole(context, "student");
-      
       return await askLLM(context.studentId, question);
+    },
+    askAdvisorQuestion: async (_, { question }, context) => {
+      requireRole(context, "advisor");
+      return await askAdvisorLLM(context.userId, question);
     },
 
     //advisor mutations
