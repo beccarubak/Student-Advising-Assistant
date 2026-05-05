@@ -351,7 +351,7 @@ function StudentDashboard() {
               background: "#f8f9fa",
             }}
           >
-            {messages.length === 0 && (
+            {messages.length === 0 && !question.trim() && (
               <div
                 style={{
                   display: "flex",
