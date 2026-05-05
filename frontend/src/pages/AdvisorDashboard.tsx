@@ -1381,7 +1381,7 @@ function AdvisorDashboard() {
               <label style={labelStyle}>Academic Status</label>
               <select value={createForm.academicStatus} onChange={(e) => setCreateForm((f) => ({ ...f, academicStatus: e.target.value }))} style={{ ...modalFormStyle, background: "white" }}>
                 <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
+                <option value="Suspended">Suspended</option>
                 <option value="Graduated">Graduated</option>
               </select>
             </div>
@@ -1431,7 +1431,7 @@ function AdvisorDashboard() {
               <label style={labelStyle}>Academic Status</label>
               <select value={editForm.academicStatus} onChange={(e) => setEditForm((f) => ({ ...f, academicStatus: e.target.value }))} style={{ ...modalFormStyle, background: "white" }}>
                 <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
+                <option value="Suspended">Suspended</option>
                 <option value="Graduated">Graduated</option>
               </select>
             </div>
