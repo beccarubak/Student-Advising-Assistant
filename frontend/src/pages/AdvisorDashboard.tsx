@@ -554,6 +554,49 @@ function AdvisorDashboard() {
     }
   };
 
+  const confirmDeleteStudent = async (studentId: string, studentName: string) => {
+    try {
+      await graphqlRequest<{ deleteStudent: boolean }>(
+        `mutation DeleteStudent($id: ID!) { deleteStudent(id: $id) }`,
+        { id: studentId },
+      );
+      // Remove from student list immediately
+      setStudents((prev) => prev.filter((s) => s.id !== studentId));
+      // Collapse accordion if this student was open
+      if (expandedStudentId === studentId) {
+        setExpandedStudentId(null);
+        setSelectedStudent(null);
+        setAudit(null);
+        setNotes([]);
+        setStudentRequests([]);
+        setEnrollments([]);
+        setShowAddEnrollment(false);
+        setGradeInputs({});
+        setEnrollmentError("");
+        setNoteError("");
+        setStudentChatMessages([]);
+        setStudentChatInput("");
+        setStudentChatError("");
+      }
+      setChatMessages((prev) => [
+        ...prev,
+        { user: `Confirmed: remove ${studentName}`, bot: `✓ ${studentName} has been permanently removed from the system.` },
+      ]);
+    } catch (err: any) {
+      setChatMessages((prev) => [
+        ...prev,
+        { user: `Confirmed: remove ${studentName}`, bot: `Failed to remove student: ${err.message}` },
+      ]);
+    }
+  };
+
+  const cancelDelete = (studentName: string) => {
+    setChatMessages((prev) => [
+      ...prev,
+      { user: "Cancel", bot: `Cancelled. ${studentName} has not been removed.` },
+    ]);
+  };
+
   const saveProfile = async () => {
     setProfileSaving(true);
     setProfileError("");
@@ -1496,6 +1539,7 @@ function AdvisorDashboard() {
                     "Which students are nearing graduation?",
                     "Show course enrollment counts",
                     "How many students per program?",
+                    "Remove Frank Torres from the system",
                   ].map((suggestion) => (
                     <button
                       key={suggestion}
@@ -1518,18 +1562,72 @@ function AdvisorDashboard() {
                 </div>
               </div>
             )}
-            {chatMessages.map((m, i) => (
-              <div key={i} style={{ marginBottom: 18 }}>
-                <div style={{ fontWeight: "bold", color: "#2E4053", marginBottom: 2, fontSize: "0.95rem" }}>
-                  You
+            {chatMessages.map((m, i) => {
+              const MARKER = "__CONFIRM_DELETE__";
+              const isConfirm = m.bot.startsWith(MARKER);
+              let deletePayload: { studentId: string; studentName: string } | null = null;
+              if (isConfirm) {
+                try { deletePayload = JSON.parse(m.bot.slice(MARKER.length)); } catch {}
+              }
+              const isLast = i === chatMessages.length - 1;
+
+              return (
+                <div key={i} style={{ marginBottom: 18 }}>
+                  <div style={{ fontWeight: "bold", color: "#2E4053", marginBottom: 2, fontSize: "0.95rem" }}>
+                    You
+                  </div>
+                  <div style={{ marginBottom: 8, fontSize: "0.95rem" }}>{m.user}</div>
+                  <div style={{ fontWeight: "bold", color: "#566573", marginBottom: 2, fontSize: "0.95rem" }}>
+                    Assistant
+                  </div>
+                  {isConfirm && deletePayload ? (
+                    <div style={{ background: "#fff8e1", border: "1px solid #ffe082", borderRadius: 8, padding: "12px 14px" }}>
+                      <div style={{ fontSize: "0.95rem", color: "#2E4053", marginBottom: isLast ? 12 : 0 }}>
+                        ⚠️ Are you sure you want to permanently remove{" "}
+                        <strong>{deletePayload.studentName}</strong> from the system? This action cannot be undone.
+                      </div>
+                      {isLast && (
+                        <div style={{ display: "flex", gap: 8 }}>
+                          <button
+                            onClick={() => confirmDeleteStudent(deletePayload!.studentId, deletePayload!.studentName)}
+                            style={{
+                              fontSize: "0.85rem",
+                              padding: "6px 14px",
+                              cursor: "pointer",
+                              background: "#ffebee",
+                              color: "#c62828",
+                              border: "1px solid #ef9a9a",
+                              borderRadius: 6,
+                              fontFamily: "inherit",
+                              fontWeight: "700",
+                            }}
+                          >
+                            Yes, remove student
+                          </button>
+                          <button
+                            onClick={() => cancelDelete(deletePayload!.studentName)}
+                            style={{
+                              fontSize: "0.85rem",
+                              padding: "6px 14px",
+                              cursor: "pointer",
+                              background: "white",
+                              color: "#566573",
+                              border: "1px solid #BFC9CA",
+                              borderRadius: 6,
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ whiteSpace: "pre-line", fontSize: "0.95rem" }}>{m.bot}</div>
+                  )}
                 </div>
-                <div style={{ marginBottom: 8, fontSize: "0.95rem" }}>{m.user}</div>
-                <div style={{ fontWeight: "bold", color: "#566573", marginBottom: 2, fontSize: "0.95rem" }}>
-                  Assistant
-                </div>
-                <div style={{ whiteSpace: "pre-line", fontSize: "0.95rem" }}>{m.bot}</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {chatError && (

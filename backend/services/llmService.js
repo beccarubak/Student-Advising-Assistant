@@ -16,6 +16,16 @@ function currentTerm() {
   return `Fall ${year}`;
 }
 
+async function extractStudentName(question, availableStudentNames) {
+  const nameList = availableStudentNames.join(", ");
+  const res = await axios.post("http://localhost:11434/api/generate", {
+    model: process.env.OLLAMA_MODEL,
+    prompt: `From the request below, identify which student the advisor wants to remove.\n\nAvailable students: ${nameList}\n\nReturn ONLY the exact full name from the available students list that best matches the request. If no student matches, return UNKNOWN. Do not explain.\n\nRequest: "${question}"`,
+    stream: false,
+  });
+  return res.data.response.trim();
+}
+
 async function extractCourseName(question, availableCourseNames) {
   const courseList = availableCourseNames.join(", ");
   const res = await axios.post("http://localhost:11434/api/generate", {
@@ -297,6 +307,7 @@ async function askAdvisorLLM(advisorId, question) {
       - course enrollment counts or how many students are enrolled per course → return COURSE_ENROLLMENT_SUMMARY
       - total number of students or student counts by academic status → return STUDENT_COUNT
       - how many students are in each degree program → return PROGRAM_SUMMARY
+      - removing, deleting, or dropping a student from the system (e.g. "remove Alice", "delete student Bob", "drop Frank from the system") → return DELETE_STUDENT
       - anything else → return GENERAL
 
       Only return ONE of these labels exactly:
@@ -304,6 +315,7 @@ async function askAdvisorLLM(advisorId, question) {
       COURSE_ENROLLMENT_SUMMARY
       STUDENT_COUNT
       PROGRAM_SUMMARY
+      DELETE_STUDENT
       GENERAL
 
       Do not explain. Do not add punctuation.
@@ -388,12 +400,32 @@ async function askAdvisorLLM(advisorId, question) {
       );
       systemResponse = `Active students per degree program:\n\n` + lines.join("\n");
 
+    } else if (intent === "DELETE_STUDENT") {
+      const allStudents = await Student.find({}, "firstName lastName _id");
+      const studentNames = allStudents.map((s) => `${s.firstName} ${s.lastName}`);
+      const extractedName = await extractStudentName(question, studentNames);
+
+      if (extractedName === "UNKNOWN") {
+        systemResponse = "I couldn't identify which student you'd like to remove. Please include the student's full name, e.g. \"Remove Alice Johnson from the system\".";
+      } else {
+        const student = allStudents.find(
+          (s) => `${s.firstName} ${s.lastName}`.toLowerCase() === extractedName.toLowerCase()
+        );
+        if (!student) {
+          systemResponse = `I couldn't find a student named "${extractedName}" in the system.`;
+        } else {
+          // Return a special marker — the frontend will render a confirmation prompt
+          systemResponse = `__CONFIRM_DELETE__${JSON.stringify({ studentId: student._id.toString(), studentName: `${student.firstName} ${student.lastName}` })}`;
+        }
+      }
+
     } else {
       systemResponse = `I can help you query aggregate student data. Try asking:
 • "Which students are nearing graduation?"
 • "Show course enrollment counts"
 • "How many students do we have?"
-• "How many students are in each program?"`;
+• "How many students are in each program?"
+• "Remove [student name] from the system"`;
     }
 
     return systemResponse;
