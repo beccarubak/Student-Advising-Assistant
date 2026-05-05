@@ -4,6 +4,8 @@ const { calculateDegreeAudit } = require("./degreeAuditService");
 const { enrollStudentWithValidation } = require("./enrollmentService");
 const Enrollment = require("../models/enrollment");
 const Course = require("../models/courses");
+const Student = require("../models/student");
+const DegreeProgram = require("../models/degreePrograms");
 
 function currentTerm() {
   const now = new Date();
@@ -173,4 +175,123 @@ async function askLLM(studentId, question) {
     }
 }
 
-module.exports = { askLLM };
+async function askAdvisorLLM(advisorId, question) {
+  try {
+    const intentResponse = await axios.post("http://localhost:11434/api/generate", {
+      model: process.env.OLLAMA_MODEL,
+      prompt: `
+      You are an academic advising assistant helping an advisor query aggregate student data.
+
+      If the question relates to:
+      - students close to or nearing graduation → return STUDENTS_NEARING_GRADUATION
+      - course enrollment counts or how many students are enrolled per course → return COURSE_ENROLLMENT_SUMMARY
+      - total number of students or student counts by academic status → return STUDENT_COUNT
+      - how many students are in each degree program → return PROGRAM_SUMMARY
+      - anything else → return GENERAL
+
+      Only return ONE of these labels exactly:
+      STUDENTS_NEARING_GRADUATION
+      COURSE_ENROLLMENT_SUMMARY
+      STUDENT_COUNT
+      PROGRAM_SUMMARY
+      GENERAL
+
+      Do not explain. Do not add punctuation.
+
+      Question: "${question}"
+      `,
+      stream: false,
+    });
+
+    const intent = intentResponse.data.response.trim().toUpperCase();
+    let systemResponse;
+
+    if (intent === "STUDENTS_NEARING_GRADUATION") {
+      const students = await Student.aggregate([
+        { $match: { academicStatus: "Active" } },
+        {
+          $lookup: {
+            from: "enrollments",
+            let: { sid: "$_id" },
+            pipeline: [
+              { $match: { $expr: { $and: [{ $eq: ["$studentId", "$$sid"] }, { $eq: ["$status", "Completed"] }] } } },
+              { $lookup: { from: "courses", localField: "courseId", foreignField: "_id", as: "course" } },
+              { $unwind: "$course" },
+              { $project: { credits: "$course.credits" } },
+            ],
+            as: "completedEnrollments",
+          },
+        },
+        { $addFields: { creditsCompleted: { $sum: "$completedEnrollments.credits" } } },
+        { $lookup: { from: "degreeprograms", localField: "degreeProgramId", foreignField: "_id", as: "degreeProgram" } },
+        { $unwind: "$degreeProgram" },
+        { $addFields: { creditsRemaining: { $subtract: ["$degreeProgram.totalCreditsRequired", "$creditsCompleted"] } } },
+        { $match: { creditsRemaining: { $lte: 9, $gte: 0 } } },
+        { $project: { firstName: 1, lastName: 1, programName: "$degreeProgram.programName", creditsCompleted: 1, creditsRemaining: 1 } },
+        { $sort: { creditsRemaining: 1 } },
+      ]);
+
+      if (students.length === 0) {
+        systemResponse = "No active students are currently within 9 credits of graduation.";
+      } else {
+        systemResponse = `Students nearing graduation (≤9 credits remaining):\n\n` +
+          students.map(s =>
+            `• ${s.firstName} ${s.lastName} — ${s.programName}: ${s.creditsCompleted} credits completed, ${s.creditsRemaining} remaining`
+          ).join("\n");
+      }
+
+    } else if (intent === "COURSE_ENROLLMENT_SUMMARY") {
+      const summary = await Enrollment.aggregate([
+        { $match: { status: "Enrolled" } },
+        { $group: { _id: "$courseId", totalEnrolled: { $sum: 1 } } },
+        { $lookup: { from: "courses", localField: "_id", foreignField: "_id", as: "course" } },
+        { $unwind: "$course" },
+        { $project: { courseName: "$course.courseName", courseCode: "$course.courseCode", totalEnrolled: 1 } },
+        { $sort: { totalEnrolled: -1 } },
+      ]);
+
+      if (summary.length === 0) {
+        systemResponse = "No active enrollments found.";
+      } else {
+        systemResponse = `Current course enrollment counts:\n\n` +
+          summary.map(c =>
+            `• ${c.courseName} (${c.courseCode}): ${c.totalEnrolled} student${c.totalEnrolled !== 1 ? "s" : ""}`
+          ).join("\n");
+      }
+
+    } else if (intent === "STUDENT_COUNT") {
+      const [active, inactive, graduated] = await Promise.all([
+        Student.countDocuments({ academicStatus: "Active" }),
+        Student.countDocuments({ academicStatus: "Inactive" }),
+        Student.countDocuments({ academicStatus: "Graduated" }),
+      ]);
+      const total = active + inactive + graduated;
+      systemResponse = `Student counts:\n\n• Total: ${total}\n• Active: ${active}\n• Inactive: ${inactive}\n• Graduated: ${graduated}`;
+
+    } else if (intent === "PROGRAM_SUMMARY") {
+      const programs = await DegreeProgram.find();
+      const lines = await Promise.all(
+        programs.map(async (p) => {
+          const count = await Student.countDocuments({ degreeProgramId: p._id, academicStatus: "Active" });
+          return `• ${p.programName}: ${count} active student${count !== 1 ? "s" : ""}`;
+        })
+      );
+      systemResponse = `Active students per degree program:\n\n` + lines.join("\n");
+
+    } else {
+      systemResponse = `I can help you query aggregate student data. Try asking:
+• "Which students are nearing graduation?"
+• "Show course enrollment counts"
+• "How many students do we have?"
+• "How many students are in each program?"`;
+    }
+
+    return systemResponse;
+
+  } catch (error) {
+    console.error("Ollama Error (advisor):", error.message);
+    throw new Error("LLM service unavailable or failed.");
+  }
+}
+
+module.exports = { askLLM, askAdvisorLLM };
