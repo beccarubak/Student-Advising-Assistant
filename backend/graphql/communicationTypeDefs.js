@@ -4,6 +4,7 @@ const communicationTypeDefs = gql`
   enum RequestType {
     MAJOR_CHANGE
     STUDY_PLAN_ADJUSTMENT
+    ENROLLMENT_REQUEST
   }
 
   enum RequestStatus {
@@ -19,6 +20,7 @@ const communicationTypeDefs = gql`
     requestType: RequestType!
     currentValue: String!
     proposedValue: String!
+    courseId: ID
     status: RequestStatus!
     advisorNotes: String
     messages: [Message]

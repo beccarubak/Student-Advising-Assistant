@@ -13,11 +13,16 @@ const changeRequestSchema = new mongoose.Schema({
   },
   requestType: {
     type: String,
-    enum: ["MAJOR_CHANGE", "STUDY_PLAN_ADJUSTMENT"],
+    enum: ["MAJOR_CHANGE", "STUDY_PLAN_ADJUSTMENT", "ENROLLMENT_REQUEST"],
     required: true,
   },
   currentValue: { type: String, required: true },
   proposedValue: { type: String, required: true },
+  courseId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Course",
+    default: null,
+  },
   status: {
     type: String,
     enum: ["pending", "approved", "denied"],
