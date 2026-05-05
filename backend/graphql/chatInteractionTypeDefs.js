@@ -11,6 +11,7 @@ const chatInteractionTypeDefs = gql`
     extend type Mutation{
         askQuestion(question: String!): String
         askAdvisorQuestion(question: String!): String
+        askAdvisorStudentQuestion(studentId: ID!, question: String!): String
     }
 `;
 
