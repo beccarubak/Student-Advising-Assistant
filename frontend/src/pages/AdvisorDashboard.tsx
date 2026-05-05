@@ -579,7 +579,7 @@ function AdvisorDashboard() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#D5D8DC" }}>
+    <div style={{ height: "100vh", overflow: "hidden", display: "flex", flexDirection: "column", background: "#D5D8DC" }}>
 
       {/* Navbar */}
       <div
@@ -752,6 +752,7 @@ function AdvisorDashboard() {
           <div
             style={{
               flex: 1,
+              minHeight: 0,
               background: "white",
               borderRadius: 8,
               boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
