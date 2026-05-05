@@ -457,22 +457,26 @@ function AdvisorDashboard() {
   };
 
   const [resolveError, setResolveError] = useState("");
+  const [advisorNotesInputs, setAdvisorNotesInputs] = useState<Record<string, string>>({});
 
-  const resolveRequest = async (requestId: string, status: "approved" | "denied") => {
+  const resolveRequest = async (requestId: string, status: "approved" | "denied", notes?: string) => {
     setResolveError("");
     try {
       await graphqlRequest<{ resolveChangeRequest: ChangeRequest }>(
-        `mutation Resolve($id: ID!, $status: RequestStatus!) {
-          resolveChangeRequest(id: $id, status: $status) { id status }
+        `mutation Resolve($id: ID!, $status: RequestStatus!, $advisorNotes: String) {
+          resolveChangeRequest(id: $id, status: $status, advisorNotes: $advisorNotes) { id status advisorNotes }
         }`,
-        { id: requestId, status },
+        { id: requestId, status, advisorNotes: notes?.trim() || null },
       );
+      const trimmedNotes = notes?.trim() || null;
       // Update local change requests list
       setStudentRequests((prev) =>
-        prev.map((r) => (r.id === requestId ? { ...r, status } : r)),
+        prev.map((r) => (r.id === requestId ? { ...r, status, advisorNotes: trimmedNotes } : r)),
       );
       // Remove from pending requests panel
       setPendingRequests((prev) => prev.filter((r) => r.id !== requestId));
+      // Clear the notes input for this request
+      setAdvisorNotesInputs((prev) => { const n = { ...prev }; delete n[requestId]; return n; });
       // If an enrollment was just approved, refresh enrollments and audit
       if (status === "approved" && selectedStudent) {
         graphqlRequest<{ getStudentEnrollments: Enrollment[] }>(
@@ -677,24 +681,67 @@ function AdvisorDashboard() {
               {pendingRequests.map((r) => (
                 <div
                   key={r.id}
-                  onClick={() => {
-                    const s = students.find((s) => s.id === r.student.id);
-                    if (s) loadStudent(s);
-                  }}
                   style={{
                     padding: "10px 12px",
                     marginBottom: 8,
                     borderRadius: 6,
                     background: "#fafafa",
                     border: "1px solid #BFC9CA",
-                    cursor: "pointer",
                   }}
                 >
-                  <div style={{ fontWeight: "600", fontSize: "0.88rem", color: "#2E4053" }}>
-                    {r.student.firstName} {r.student.lastName}
+                  {/* Clickable header navigates to student */}
+                  <div
+                    onClick={() => {
+                      const s = students.find((s) => s.id === r.student.id);
+                      if (s) loadStudent(s);
+                    }}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <div style={{ fontWeight: "600", fontSize: "0.88rem", color: "#2E4053" }}>
+                      {r.student.firstName} {r.student.lastName}
+                    </div>
+                    <div style={{ fontSize: "0.8rem", color: "#566573", marginTop: 2 }}>
+                      {r.requestType === "ENROLLMENT_REQUEST" ? "Enrollment Request" : r.requestType.replace(/_/g, " ")}
+                      {" "}&middot; {formatDate(r.createdAt)}
+                    </div>
+                    {r.requestType === "ENROLLMENT_REQUEST" && (
+                      <div style={{ fontSize: "0.78rem", color: "#717D7E", marginTop: 2 }}>
+                        Course: <strong>{r.proposedValue}</strong>
+                      </div>
+                    )}
                   </div>
-                  <div style={{ fontSize: "0.8rem", color: "#566573", marginTop: 2 }}>
-                    {r.requestType.replace("_", " ")} &middot; {formatDate(r.createdAt)}
+                  {/* Approve / Deny with optional note */}
+                  <div style={{ marginTop: 8 }}>
+                    <input
+                      value={advisorNotesInputs[r.id] ?? ""}
+                      onChange={(e) => setAdvisorNotesInputs((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                      placeholder="Add a note (optional)..."
+                      style={{
+                        width: "100%",
+                        boxSizing: "border-box",
+                        fontSize: "0.78rem",
+                        padding: "5px 8px",
+                        borderRadius: 5,
+                        border: "1px solid #BFC9CA",
+                        outline: "none",
+                        fontFamily: "inherit",
+                        marginBottom: 6,
+                      }}
+                    />
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button
+                        onClick={() => resolveRequest(r.id, "approved", advisorNotesInputs[r.id])}
+                        style={{ fontSize: "0.75rem", padding: "4px 10px", cursor: "pointer", background: "#e8f5e9", color: "#2e7d32", border: "1px solid #a5d6a7", borderRadius: 5, fontFamily: "inherit", fontWeight: "600" }}
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => resolveRequest(r.id, "denied", advisorNotesInputs[r.id])}
+                        style={{ fontSize: "0.75rem", padding: "4px 10px", cursor: "pointer", background: "#ffebee", color: "#c62828", border: "1px solid #ef9a9a", borderRadius: 5, fontFamily: "inherit", fontWeight: "600" }}
+                      >
+                        Deny
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1030,20 +1077,45 @@ function AdvisorDashboard() {
                                   }
                                 </div>
                                 <div style={{ fontSize: "0.75rem", color: "#717D7E", marginTop: 4 }}>{formatDate(r.createdAt)}</div>
-                                {r.requestType === "ENROLLMENT_REQUEST" && r.status === "pending" && (
-                                  <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
-                                    <button
-                                      onClick={() => resolveRequest(r.id, "approved")}
-                                      style={{ fontSize: "0.78rem", padding: "4px 12px", cursor: "pointer", background: "#e8f5e9", color: "#2e7d32", border: "1px solid #a5d6a7", borderRadius: 5, fontFamily: "inherit", fontWeight: "600" }}
-                                    >
-                                      Approve
-                                    </button>
-                                    <button
-                                      onClick={() => resolveRequest(r.id, "denied")}
-                                      style={{ fontSize: "0.78rem", padding: "4px 12px", cursor: "pointer", background: "#ffebee", color: "#c62828", border: "1px solid #ef9a9a", borderRadius: 5, fontFamily: "inherit", fontWeight: "600" }}
-                                    >
-                                      Deny
-                                    </button>
+                                {/* Advisor note (visible once set) */}
+                                {r.advisorNotes && (
+                                  <div style={{ fontSize: "0.8rem", color: "#2E4053", marginTop: 6, fontStyle: "italic", background: "#f0f4f8", border: "1px solid #d0d7de", borderRadius: 5, padding: "5px 8px" }}>
+                                    Advisor note: {r.advisorNotes}
+                                  </div>
+                                )}
+                                {/* Approve / Deny (all pending request types) */}
+                                {r.status === "pending" && (
+                                  <div style={{ marginTop: 8 }}>
+                                    <input
+                                      value={advisorNotesInputs[r.id] ?? ""}
+                                      onChange={(e) => setAdvisorNotesInputs((prev) => ({ ...prev, [r.id]: e.target.value }))}
+                                      placeholder="Add a note (optional)..."
+                                      style={{
+                                        width: "100%",
+                                        boxSizing: "border-box",
+                                        fontSize: "0.78rem",
+                                        padding: "5px 8px",
+                                        borderRadius: 5,
+                                        border: "1px solid #BFC9CA",
+                                        outline: "none",
+                                        fontFamily: "inherit",
+                                        marginBottom: 6,
+                                      }}
+                                    />
+                                    <div style={{ display: "flex", gap: 8 }}>
+                                      <button
+                                        onClick={() => resolveRequest(r.id, "approved", advisorNotesInputs[r.id])}
+                                        style={{ fontSize: "0.78rem", padding: "4px 12px", cursor: "pointer", background: "#e8f5e9", color: "#2e7d32", border: "1px solid #a5d6a7", borderRadius: 5, fontFamily: "inherit", fontWeight: "600" }}
+                                      >
+                                        Approve
+                                      </button>
+                                      <button
+                                        onClick={() => resolveRequest(r.id, "denied", advisorNotesInputs[r.id])}
+                                        style={{ fontSize: "0.78rem", padding: "4px 12px", cursor: "pointer", background: "#ffebee", color: "#c62828", border: "1px solid #ef9a9a", borderRadius: 5, fontFamily: "inherit", fontWeight: "600" }}
+                                      >
+                                        Deny
+                                      </button>
+                                    </div>
                                   </div>
                                 )}
                               </div>

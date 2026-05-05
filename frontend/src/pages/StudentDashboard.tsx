@@ -23,6 +23,16 @@ interface DegreeAudit {
   remainingCourses: Course[];
 }
 
+interface MyChangeRequest {
+  id: string;
+  requestType: string;
+  currentValue: string;
+  proposedValue: string;
+  status: string;
+  advisorNotes: string | null;
+  createdAt: string;
+}
+
 interface Student {
   firstName: string;
   lastName: string;
@@ -47,13 +57,27 @@ function StudentDashboard() {
   const [student, setStudent] = useState<Student | null>(null);
   const [audit, setAudit] = useState<DegreeAudit | null>(null);
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [myRequests, setMyRequests] = useState<MyChangeRequest[]>([]);
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<{ user: string; bot: string }[]>([]);
   const [chatError, setChatError] = useState("");
 
   const userId = getStudentIdFromToken();
 
+  const fetchMyRequests = () => {
+    graphqlRequest<{ getMyChangeRequests: MyChangeRequest[] }>(
+      `query {
+        getMyChangeRequests {
+          id requestType currentValue proposedValue status advisorNotes createdAt
+        }
+      }`,
+    )
+      .then((d) => setMyRequests(d.getMyChangeRequests))
+      .catch(console.error);
+  };
+
   useEffect(() => {
+    fetchMyRequests();
     graphqlRequest<{ getStudent: Student }>(
       `query GetStudent($id: ID!) {
         getStudent(id: $id) {
@@ -104,6 +128,8 @@ function StudentDashboard() {
         { user: question, bot: data.askQuestion },
       ]);
       setQuestion("");
+      // Refresh requests in case an enrollment request was just created
+      fetchMyRequests();
     } catch (err: any) {
       setChatError(err.message);
     }
@@ -313,6 +339,90 @@ function StudentDashboard() {
               </div>
             </div>
           ))}
+
+          {/* My Requests */}
+          <div style={{ borderTop: "1px solid #e8eaed", marginTop: 8, paddingTop: 20 }}>
+            <h3
+              style={{
+                marginTop: 0,
+                marginBottom: 16,
+                fontSize: "1.2rem",
+                fontWeight: "700",
+                color: "#1a1a1a",
+              }}
+            >
+              My Requests
+            </h3>
+            {myRequests.length === 0 && (
+              <p style={{ color: "#888", fontSize: "0.9rem" }}>No requests yet.</p>
+            )}
+            {[...myRequests].reverse().map((r) => {
+              const isPending = r.status === "pending";
+              const isApproved = r.status === "approved";
+              const badgeStyle: React.CSSProperties = isApproved
+                ? { background: "#e8f5e9", color: "#2e7d32", border: "1px solid #a5d6a7" }
+                : isPending
+                ? { background: "#fff8e1", color: "#e65100", border: "1px solid #ffe082" }
+                : { background: "#ffebee", color: "#c62828", border: "1px solid #ef9a9a" };
+              return (
+                <div
+                  key={r.id}
+                  style={{
+                    padding: "12px 14px",
+                    marginBottom: 10,
+                    borderRadius: 8,
+                    background: "white",
+                    border: "1px solid #e8eaed",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                    <div style={{ fontWeight: "600", fontSize: "0.9rem", color: "#1a1a1a" }}>
+                      {r.requestType === "ENROLLMENT_REQUEST"
+                        ? "Enrollment Request"
+                        : r.requestType.replace(/_/g, " ")}
+                    </div>
+                    <span
+                      style={{
+                        fontSize: "0.75rem",
+                        padding: "2px 9px",
+                        borderRadius: 10,
+                        fontWeight: "600",
+                        whiteSpace: "nowrap",
+                        ...badgeStyle,
+                      }}
+                    >
+                      {r.status}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: "0.82rem", color: "#666", marginTop: 4 }}>
+                    {r.requestType === "ENROLLMENT_REQUEST"
+                      ? <>Course: <strong>{r.proposedValue}</strong></>
+                      : <>{r.currentValue} → {r.proposedValue}</>}
+                  </div>
+                  <div style={{ fontSize: "0.75rem", color: "#999", marginTop: 4 }}>
+                    {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ""}
+                  </div>
+                  {r.advisorNotes && (
+                    <div
+                      style={{
+                        marginTop: 8,
+                        padding: "6px 10px",
+                        borderRadius: 6,
+                        background: "#f0f4f8",
+                        border: "1px solid #d0d7de",
+                        fontSize: "0.82rem",
+                        color: "#2E4053",
+                        fontStyle: "italic",
+                      }}
+                    >
+                      Advisor comment: {r.advisorNotes}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* Right: Chat */}
