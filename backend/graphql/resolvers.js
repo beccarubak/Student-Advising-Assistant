@@ -45,8 +45,12 @@ const resolvers = {
     },
 
     //advisor queries
-    getAdvisors: async () => await Advisor.find(),
-    getAdvisor: async (_, { id }) => {
+    getAdvisors: async (_, __, context) => {
+      requireRole(context, "advisor");
+      return await Advisor.find();
+    },
+    getAdvisor: async (_, { id }, context) => {
+      if (!context.role) throw new Error("Unauthorized");
       if (!mongoose.Types.ObjectId.isValid(id)) {
         throw new Error("Invalid advisor ID");
       }
@@ -248,9 +252,12 @@ const resolvers = {
     },
 
     //enrollment mutations
-    enrollStudent: async (_, { studentId, courseId, term }) =>
-      await enrollStudentWithValidation(studentId, courseId, term),
-    updateEnrollmentStatus: async (_, { enrollmentId, status, grade }) => {
+    enrollStudent: async (_, { studentId, courseId, term }, context) => {
+      requireRole(context, "advisor");
+      return await enrollStudentWithValidation(studentId, courseId, term);
+    },
+    updateEnrollmentStatus: async (_, { enrollmentId, status, grade }, context) => {
+      requireRole(context, "advisor");
       if (!mongoose.Types.ObjectId.isValid(enrollmentId)) {
         throw new Error("Invalid enrollment ID");
       }
@@ -266,19 +273,29 @@ const resolvers = {
       requireRole(context, "advisor");
       return await askAdvisorLLM(context.userId, question);
     },
+    askAdvisorStudentQuestion: async (_, { studentId, question }, context) => {
+      requireRole(context, "advisor");
+      if (!mongoose.Types.ObjectId.isValid(studentId)) {
+        throw new Error("Invalid student ID");
+      }
+      return await askLLM(studentId, question);
+    },
 
     //advisor mutations
-    createAdvisor: async (_, { input }) => {
+    createAdvisor: async (_, { input }, context) => {
+      requireRole(context, "advisor");
       const advisor = new Advisor(input);
       return await advisor.save();
     },
-    updateAdvisor: async (_, { id, input }) => {
+    updateAdvisor: async (_, { id, input }, context) => {
+      requireRole(context, "advisor");
       if (!mongoose.Types.ObjectId.isValid(id)) {
         throw new Error("Invalid advisor ID");
       }
       return await Advisor.findByIdAndUpdate(id, input, { new: true });
     },
-    deleteAdvisor: async (_, { id }) => {
+    deleteAdvisor: async (_, { id }, context) => {
+      requireRole(context, "advisor");
       if (!mongoose.Types.ObjectId.isValid(id)) {
         throw new Error("Invalid advisor ID");
       }
@@ -287,7 +304,8 @@ const resolvers = {
     },
 
     //student-advisor assignment
-    assignAdvisor: async (_, { studentId, advisorId }) => {
+    assignAdvisor: async (_, { studentId, advisorId }, context) => {
+      requireRole(context, "advisor");
       if (!mongoose.Types.ObjectId.isValid(studentId)) {
         throw new Error("Invalid student ID");
       }
@@ -304,7 +322,8 @@ const resolvers = {
     },
 
     //advising note mutations
-    createAdvisingNote: async (_, { studentId, advisorId, note }) => {
+    createAdvisingNote: async (_, { studentId, advisorId, note }, context) => {
+      requireRole(context, "advisor");
       if (!mongoose.Types.ObjectId.isValid(studentId)) {
         throw new Error("Invalid student ID");
       }
@@ -319,7 +338,8 @@ const resolvers = {
       const advisingNote = new AdvisingNote({ studentId, advisorId, note });
       return await advisingNote.save();
     },
-    deleteAdvisingNote: async (_, { id }) => {
+    deleteAdvisingNote: async (_, { id }, context) => {
+      requireRole(context, "advisor");
       if (!mongoose.Types.ObjectId.isValid(id)) {
         throw new Error("Invalid advising note ID");
       }

@@ -144,10 +144,15 @@ function AdvisorDashboard() {
   const [gradeInputs, setGradeInputs] = useState<Record<string, string>>({});
   const [enrollmentError, setEnrollmentError] = useState("");
 
-  // Advisor chat
+  // Aggregate advisor chat (right panel)
   const [chatMessages, setChatMessages] = useState<{ user: string; bot: string }[]>([]);
   const [chatQuestion, setChatQuestion] = useState("");
   const [chatError, setChatError] = useState("");
+
+  // Per-student chat (inside accordion)
+  const [studentChatMessages, setStudentChatMessages] = useState<{ user: string; bot: string }[]>([]);
+  const [studentChatInput, setStudentChatInput] = useState("");
+  const [studentChatError, setStudentChatError] = useState("");
 
   const advisorId = getAdvisorIdFromToken();
 
@@ -210,6 +215,9 @@ function AdvisorDashboard() {
     setAddEnrollmentError("");
     setEnrollmentError("");
     setGradeInputs({});
+    setStudentChatMessages([]);
+    setStudentChatInput("");
+    setStudentChatError("");
 
     const [auditData, notesData, requestsData, enrollmentsData] = await Promise.all([
       graphqlRequest<{ getDegreeAudit: DegreeAudit }>(
@@ -271,6 +279,9 @@ function AdvisorDashboard() {
       setGradeInputs({});
       setEnrollmentError("");
       setNoteError("");
+      setStudentChatMessages([]);
+      setStudentChatInput("");
+      setStudentChatError("");
     } else {
       loadStudent(student);
     }
@@ -441,6 +452,24 @@ function AdvisorDashboard() {
         .catch(console.error);
     } catch (err: any) {
       setEnrollmentError(err.message);
+    }
+  };
+
+  const sendStudentChatMessage = async () => {
+    if (!studentChatInput.trim() || !selectedStudent) return;
+    setStudentChatError("");
+    const q = studentChatInput;
+    setStudentChatInput("");
+    try {
+      const data = await graphqlRequest<{ askAdvisorStudentQuestion: string }>(
+        `mutation AskStudentQ($studentId: ID!, $question: String!) {
+           askAdvisorStudentQuestion(studentId: $studentId, question: $question)
+         }`,
+        { studentId: selectedStudent.id, question: q },
+      );
+      setStudentChatMessages((prev) => [...prev, { user: q, bot: data.askAdvisorStudentQuestion }]);
+    } catch (err: any) {
+      setStudentChatError(err.message);
     }
   };
 
@@ -985,6 +1014,74 @@ function AdvisorDashboard() {
                               style={{ fontSize: "0.88rem", padding: "8px 14px", cursor: "pointer", background: "#F1C40F", color: "#2E4053", border: "none", borderRadius: 6, fontWeight: "700", fontFamily: "inherit" }}
                             >
                               Add
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Per-student chat */}
+                        <div style={{ marginTop: 20, borderTop: "1px solid #e8eaed", paddingTop: 16 }}>
+                          <h4 style={sectionHeadingStyle}>Ask About This Student</h4>
+                          <div
+                            style={{
+                              border: "1px solid #e8eaed",
+                              borderRadius: 8,
+                              background: "#f8f9fa",
+                              padding: 12,
+                              marginBottom: 10,
+                              minHeight: 80,
+                              maxHeight: 240,
+                              overflowY: "auto",
+                            }}
+                          >
+                            {studentChatMessages.length === 0 && (
+                              <p style={{ color: "#717D7E", fontSize: "0.82rem", margin: 0 }}>
+                                Ask about this student's progress, eligibility, or enrollments
+                              </p>
+                            )}
+                            {studentChatMessages.map((m, i) => (
+                              <div key={i} style={{ marginBottom: 12 }}>
+                                <div style={{ fontWeight: "600", fontSize: "0.82rem", color: "#2E4053", marginBottom: 2 }}>You</div>
+                                <div style={{ fontSize: "0.85rem", marginBottom: 6 }}>{m.user}</div>
+                                <div style={{ fontWeight: "600", fontSize: "0.82rem", color: "#566573", marginBottom: 2 }}>Assistant</div>
+                                <div style={{ whiteSpace: "pre-line", fontSize: "0.85rem" }}>{m.bot}</div>
+                              </div>
+                            ))}
+                          </div>
+                          {studentChatError && (
+                            <p style={{ color: "#c62828", fontSize: "0.8rem", marginBottom: 6 }}>{studentChatError}</p>
+                          )}
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <input
+                              value={studentChatInput}
+                              onChange={(e) => setStudentChatInput(e.target.value)}
+                              onKeyDown={(e) => e.key === "Enter" && sendStudentChatMessage()}
+                              placeholder="e.g. Is this student eligible to graduate?"
+                              style={{
+                                flex: 1,
+                                fontSize: "0.85rem",
+                                padding: "7px 10px",
+                                borderRadius: 6,
+                                border: "1px solid #e8eaed",
+                                outline: "none",
+                                background: "white",
+                                fontFamily: "inherit",
+                              }}
+                            />
+                            <button
+                              onClick={sendStudentChatMessage}
+                              style={{
+                                fontSize: "0.85rem",
+                                padding: "7px 14px",
+                                cursor: "pointer",
+                                background: "#F1C40F",
+                                color: "#2E4053",
+                                border: "none",
+                                borderRadius: 6,
+                                fontWeight: "700",
+                                fontFamily: "inherit",
+                              }}
+                            >
+                              Ask
                             </button>
                           </div>
                         </div>
