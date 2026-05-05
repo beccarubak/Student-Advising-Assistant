@@ -1,11 +1,11 @@
 const axios = require("axios");
 const ChatInteraction = require("../models/chatInteraction");
 const { calculateDegreeAudit } = require("./degreeAuditService");
-const { enrollStudentWithValidation } = require("./enrollmentService");
 const Enrollment = require("../models/enrollment");
 const Course = require("../models/courses");
 const Student = require("../models/student");
 const DegreeProgram = require("../models/degreePrograms");
+const ChangeRequest = require("../models/changeRequest");
 
 function currentTerm() {
   const now = new Date();
@@ -165,7 +165,7 @@ async function askLLM(studentId, question) {
 
     } else if (intent === "ENROLL_COURSE") {
 
-      const allCourses = await Course.find().select("courseName courseCode");
+      const allCourses = await Course.find().select("courseName courseCode prerequisites");
       const courseName = await extractCourseName(question, allCourses.map((c) => c.courseName));
 
       if (courseName === "UNKNOWN") {
@@ -174,23 +174,69 @@ async function askLLM(studentId, question) {
         // Try exact match first, then partial match as fallback
         let course = await Course.findOne({
           courseName: { $regex: new RegExp(`^${courseName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
-        });
+        }).populate("prerequisites");
         if (!course) {
           course = await Course.findOne({
             courseName: { $regex: new RegExp(courseName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") },
-          });
+          }).populate("prerequisites");
         }
 
         if (!course) {
           const names = allCourses.map((c) => c.courseName).join(", ");
           systemResponse = `I couldn't find a course named "${courseName}". Available courses: ${names}.`;
         } else {
-          try {
-            const term = currentTerm();
-            await enrollStudentWithValidation(studentId, course._id, term);
-            systemResponse = `You have been successfully enrolled in ${course.courseName} for ${term}.`;
-          } catch (err) {
-            systemResponse = `Could not enroll you in ${course.courseName}: ${err.message}`;
+          // Check student status
+          const student = await Student.findById(studentId);
+          if (!student) {
+            systemResponse = "Student record not found.";
+          } else if (student.academicStatus !== "Active") {
+            systemResponse = `You cannot request enrollment because your academic status is ${student.academicStatus}.`;
+          } else if (!student.advisorId) {
+            systemResponse = "You cannot submit an enrollment request because you have no assigned advisor. Please contact the advising office.";
+          } else {
+            // Check prerequisites
+            const completedEnrollments = await Enrollment.find({ studentId, status: "Completed" }).select("courseId");
+            const completedIds = new Set(completedEnrollments.map((e) => e.courseId.toString()));
+            const unmet = (course.prerequisites || []).filter((p) => !completedIds.has(p._id.toString()));
+
+            if (unmet.length > 0) {
+              systemResponse = `You cannot request enrollment in ${course.courseName} — the following prerequisites are not yet completed: ${unmet.map((p) => p.courseName).join(", ")}.`;
+            } else {
+              // Check already enrolled or completed
+              const existing = await Enrollment.findOne({
+                studentId,
+                courseId: course._id,
+                status: { $in: ["Enrolled", "Completed"] },
+              });
+              if (existing) {
+                systemResponse = existing.status === "Completed"
+                  ? `You have already completed ${course.courseName}.`
+                  : `You are already enrolled in ${course.courseName}.`;
+              } else {
+                // Check for a duplicate pending request
+                const pendingRequest = await ChangeRequest.findOne({
+                  studentId,
+                  requestType: "ENROLLMENT_REQUEST",
+                  courseId: course._id,
+                  status: "pending",
+                });
+                if (pendingRequest) {
+                  systemResponse = `You already have a pending enrollment request for ${course.courseName}. Please wait for your advisor to review it.`;
+                } else {
+                  // Create the enrollment request
+                  await ChangeRequest.create({
+                    studentId,
+                    advisorId: student.advisorId,
+                    requestType: "ENROLLMENT_REQUEST",
+                    currentValue: "Not enrolled",
+                    proposedValue: course.courseName,
+                    courseId: course._id,
+                    status: "pending",
+                  });
+                  systemResponse = `Your enrollment request for ${course.courseName} has been submitted. Your advisor will review it shortly.`;
+                }
+              }
+            }
           }
         }
       }

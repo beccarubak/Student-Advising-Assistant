@@ -9,6 +9,15 @@ const ChangeRequest = require("../models/changeRequest");
 const Message = require("../models/message");
 const { calculateDegreeAudit } = require("../services/degreeAuditService");
 const { enrollStudentWithValidation, updateEnrollmentStatus } = require("../services/enrollmentService");
+
+function currentTerm() {
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const year = now.getFullYear();
+  if (month >= 1 && month <= 5) return `Spring ${year}`;
+  if (month >= 6 && month <= 7) return `Summer ${year}`;
+  return `Fall ${year}`;
+}
 const { askLLM, askAdvisorLLM } = require("../services/llmService");
 const { requireRole } = require("../services/authService");
 const jwt = require("jsonwebtoken");
@@ -384,6 +393,14 @@ const resolvers = {
       if (!request) throw new Error("Change request not found");
       if (request.advisorId.toString() !== context.userId) throw new Error("Unauthorized");
       if (request.status !== "pending") throw new Error("Request is already resolved");
+
+      // If approving an enrollment request, actually enroll the student
+      if (request.requestType === "ENROLLMENT_REQUEST" && status === "approved") {
+        if (!request.courseId) throw new Error("Enrollment request is missing course information");
+        const term = currentTerm();
+        await enrollStudentWithValidation(request.studentId, request.courseId, term);
+      }
+
       return await ChangeRequest.findByIdAndUpdate(
         id,
         { status, advisorNotes: advisorNotes || null, resolvedAt: new Date() },

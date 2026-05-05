@@ -50,6 +50,7 @@ interface ChangeRequest {
   requestType: string;
   currentValue: string;
   proposedValue: string;
+  courseId?: string;
   status: string;
   advisorNotes: string | null;
   createdAt: string;
@@ -452,6 +453,53 @@ function AdvisorDashboard() {
         .catch(console.error);
     } catch (err: any) {
       setEnrollmentError(err.message);
+    }
+  };
+
+  const [resolveError, setResolveError] = useState("");
+
+  const resolveRequest = async (requestId: string, status: "approved" | "denied") => {
+    setResolveError("");
+    try {
+      await graphqlRequest<{ resolveChangeRequest: ChangeRequest }>(
+        `mutation Resolve($id: ID!, $status: RequestStatus!) {
+          resolveChangeRequest(id: $id, status: $status) { id status }
+        }`,
+        { id: requestId, status },
+      );
+      // Update local change requests list
+      setStudentRequests((prev) =>
+        prev.map((r) => (r.id === requestId ? { ...r, status } : r)),
+      );
+      // Remove from pending requests panel
+      setPendingRequests((prev) => prev.filter((r) => r.id !== requestId));
+      // If an enrollment was just approved, refresh enrollments and audit
+      if (status === "approved" && selectedStudent) {
+        graphqlRequest<{ getStudentEnrollments: Enrollment[] }>(
+          `query GetEnrollments($studentId: ID!) {
+            getStudentEnrollments(studentId: $studentId) {
+              id term status grade
+              course { id courseName courseCode credits }
+            }
+          }`,
+          { studentId: selectedStudent.id },
+        )
+          .then((d) => setEnrollments(d.getStudentEnrollments))
+          .catch(console.error);
+        graphqlRequest<{ getDegreeAudit: DegreeAudit }>(
+          `query GetAudit($studentId: ID!) {
+            getDegreeAudit(studentId: $studentId) {
+              totalCreditsRequired creditsCompleted creditsRemaining
+              remainingCourses { id courseName courseCode credits }
+            }
+          }`,
+          { studentId: selectedStudent.id },
+        )
+          .then((d) => setAudit(d.getDegreeAudit))
+          .catch(console.error);
+      }
+    } catch (err: any) {
+      setResolveError(err.message);
     }
   };
 
@@ -959,6 +1007,9 @@ function AdvisorDashboard() {
                         {/* Change Requests */}
                         <div style={{ marginBottom: 20 }}>
                           <h4 style={sectionHeadingStyle}>Change Requests</h4>
+                          {resolveError && (
+                            <p style={{ color: "#c62828", fontSize: "0.82rem", marginBottom: 8 }}>{resolveError}</p>
+                          )}
                           {studentRequests.length === 0 ? (
                             <p style={{ color: "#566573", fontSize: "0.85rem" }}>No change requests.</p>
                           ) : (
@@ -966,23 +1017,35 @@ function AdvisorDashboard() {
                               <div key={r.id} style={{ padding: "10px 12px", marginBottom: 8, borderRadius: 6, background: "#fafafa", border: "1px solid #BFC9CA" }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                   <div style={{ fontWeight: "600", fontSize: "0.85rem", color: "#2E4053" }}>
-                                    {r.requestType.replace("_", " ")}
+                                    {r.requestType === "ENROLLMENT_REQUEST" ? "Enrollment Request" : r.requestType.replace(/_/g, " ")}
                                   </div>
                                   <span style={{ fontSize: "0.73rem", padding: "2px 8px", borderRadius: 10, background: requestStatusColor(r.status), color: requestStatusTextColor(r.status), fontWeight: "600" }}>
                                     {r.status}
                                   </span>
                                 </div>
                                 <div style={{ fontSize: "0.8rem", color: "#566573", marginTop: 4 }}>
-                                  <span style={{ color: "#717D7E" }}>From:</span> {r.currentValue}
-                                  <span style={{ margin: "0 6px", color: "#717D7E" }}>→</span>
-                                  {r.proposedValue}
+                                  {r.requestType === "ENROLLMENT_REQUEST"
+                                    ? <>Course: <strong>{r.proposedValue}</strong></>
+                                    : <><span style={{ color: "#717D7E" }}>From:</span> {r.currentValue} <span style={{ margin: "0 6px", color: "#717D7E" }}>→</span> {r.proposedValue}</>
+                                  }
                                 </div>
-                                {r.advisorNotes && (
-                                  <div style={{ fontSize: "0.78rem", color: "#566573", marginTop: 4, fontStyle: "italic" }}>
-                                    Note: {r.advisorNotes}
+                                <div style={{ fontSize: "0.75rem", color: "#717D7E", marginTop: 4 }}>{formatDate(r.createdAt)}</div>
+                                {r.requestType === "ENROLLMENT_REQUEST" && r.status === "pending" && (
+                                  <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+                                    <button
+                                      onClick={() => resolveRequest(r.id, "approved")}
+                                      style={{ fontSize: "0.78rem", padding: "4px 12px", cursor: "pointer", background: "#e8f5e9", color: "#2e7d32", border: "1px solid #a5d6a7", borderRadius: 5, fontFamily: "inherit", fontWeight: "600" }}
+                                    >
+                                      Approve
+                                    </button>
+                                    <button
+                                      onClick={() => resolveRequest(r.id, "denied")}
+                                      style={{ fontSize: "0.78rem", padding: "4px 12px", cursor: "pointer", background: "#ffebee", color: "#c62828", border: "1px solid #ef9a9a", borderRadius: 5, fontFamily: "inherit", fontWeight: "600" }}
+                                    >
+                                      Deny
+                                    </button>
                                   </div>
                                 )}
-                                <div style={{ fontSize: "0.75rem", color: "#717D7E", marginTop: 4 }}>{formatDate(r.createdAt)}</div>
                               </div>
                             ))
                           )}
