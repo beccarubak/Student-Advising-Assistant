@@ -312,6 +312,22 @@ const resolvers = {
       return true;
     },
 
+    // self-service profile updates
+    updateMyProfile: async (_, { email, phone }, context) => {
+      requireRole(context, "student");
+      const update = {};
+      if (email !== undefined) update.email = email;
+      if (phone !== undefined) update.phone = phone;
+      return await Student.findByIdAndUpdate(context.studentId, update, { new: true });
+    },
+    updateMyAdvisorProfile: async (_, { email, phone }, context) => {
+      requireRole(context, "advisor");
+      const update = {};
+      if (email !== undefined) update.email = email;
+      if (phone !== undefined) update.phone = phone;
+      return await Advisor.findByIdAndUpdate(context.userId, update, { new: true });
+    },
+
     //student-advisor assignment
     assignAdvisor: async (_, { studentId, advisorId }, context) => {
       requireRole(context, "advisor");

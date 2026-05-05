@@ -6,6 +6,7 @@ const advisorTypeDefs = gql`
     firstName: String!
     lastName: String!
     email: String!
+    phone: String
     createdAt: String
   }
 
@@ -24,6 +25,7 @@ const advisorTypeDefs = gql`
     createAdvisor(input: AdvisorInput!): Advisor
     updateAdvisor(id: ID!, input: AdvisorInput!): Advisor
     deleteAdvisor(id: ID!): Boolean
+    updateMyAdvisorProfile(email: String, phone: String): Advisor
   }
 `;
 

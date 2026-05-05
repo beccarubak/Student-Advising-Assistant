@@ -114,12 +114,14 @@ async function seed() {
     firstName: "Sarah",
     lastName: "Mitchell",
     email: "sarah.mitchell@university.edu",
+    phone: "(617) 555-0181",
   });
 
   const james = await Advisor.create({
     firstName: "James",
     lastName: "Carter",
     email: "james.carter@university.edu",
+    phone: "(617) 555-0194",
   });
 
   console.log("Advisors created");
@@ -130,6 +132,7 @@ async function seed() {
     firstName: "Alice",
     lastName: "Johnson",
     email: "alice@example.com",
+    phone: "(555) 201-4488",
     degreeProgramId: csProgram._id,
     advisorId: sarah._id,
     academicStatus: "Active",
@@ -140,6 +143,7 @@ async function seed() {
     firstName: "Bob",
     lastName: "Smith",
     email: "bob@example.com",
+    phone: "(555) 309-7712",
     degreeProgramId: csProgram._id,
     advisorId: sarah._id,
     academicStatus: "Active",
@@ -150,6 +154,7 @@ async function seed() {
     firstName: "Carol",
     lastName: "Davis",
     email: "carol@example.com",
+    phone: "(555) 418-6630",
     degreeProgramId: dsProgram._id,
     advisorId: james._id,
     academicStatus: "Active",
@@ -160,6 +165,7 @@ async function seed() {
     firstName: "David",
     lastName: "Lee",
     email: "david@example.com",
+    phone: "(555) 527-3301",
     degreeProgramId: csProgram._id,
     advisorId: james._id,
     academicStatus: "Active",
@@ -170,6 +176,7 @@ async function seed() {
     firstName: "Emma",
     lastName: "Wilson",
     email: "emma@example.com",
+    phone: "(555) 634-9925",
     degreeProgramId: csProgram._id,
     advisorId: sarah._id,
     academicStatus: "Graduated",
@@ -180,6 +187,7 @@ async function seed() {
     firstName: "Frank",
     lastName: "Torres",
     email: "frank@example.com",
+    phone: "(555) 743-8847",
     degreeProgramId: csProgram._id,
     advisorId: james._id,
     academicStatus: "Suspended",

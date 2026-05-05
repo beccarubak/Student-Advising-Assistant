@@ -24,6 +24,8 @@ interface Student {
 interface Advisor {
   firstName: string;
   lastName: string;
+  email: string;
+  phone: string | null;
 }
 
 interface DegreeProgramOption {
@@ -145,6 +147,13 @@ function AdvisorDashboard() {
   const [gradeInputs, setGradeInputs] = useState<Record<string, string>>({});
   const [enrollmentError, setEnrollmentError] = useState("");
 
+  // Account modal
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [profileEmail, setProfileEmail] = useState("");
+  const [profilePhone, setProfilePhone] = useState("");
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState("");
+
   // Aggregate advisor chat (right panel)
   const [chatMessages, setChatMessages] = useState<{ user: string; bot: string }[]>([]);
   const [chatQuestion, setChatQuestion] = useState("");
@@ -160,11 +169,15 @@ function AdvisorDashboard() {
   useEffect(() => {
     graphqlRequest<{ getAdvisor: Advisor }>(
       `query GetAdvisor($id: ID!) {
-        getAdvisor(id: $id) { firstName lastName }
+        getAdvisor(id: $id) { firstName lastName email phone }
       }`,
       { id: advisorId },
     )
-      .then((d) => setAdvisor(d.getAdvisor))
+      .then((d) => {
+        setAdvisor(d.getAdvisor);
+        setProfileEmail(d.getAdvisor.email ?? "");
+        setProfilePhone(d.getAdvisor.phone ?? "");
+      })
       .catch(console.error);
 
     graphqlRequest<{ getStudents: Student[] }>(
@@ -541,6 +554,27 @@ function AdvisorDashboard() {
     }
   };
 
+  const saveProfile = async () => {
+    setProfileSaving(true);
+    setProfileError("");
+    try {
+      const data = await graphqlRequest<{ updateMyAdvisorProfile: Advisor }>(
+        `mutation UpdateMyAdvisorProfile($email: String, $phone: String) {
+          updateMyAdvisorProfile(email: $email, phone: $phone) {
+            firstName lastName email phone
+          }
+        }`,
+        { email: profileEmail, phone: profilePhone },
+      );
+      setAdvisor(data.updateMyAdvisorProfile);
+      setAccountOpen(false);
+    } catch (err: any) {
+      setProfileError(err.message);
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
@@ -581,6 +615,170 @@ function AdvisorDashboard() {
   return (
     <div style={{ height: "100vh", overflow: "hidden", display: "flex", flexDirection: "column", background: "#D5D8DC" }}>
 
+      {/* Account Modal */}
+      {accountOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setAccountOpen(false); }}
+        >
+          <div
+            style={{
+              background: "white",
+              borderRadius: 12,
+              padding: "32px 36px",
+              width: 420,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+              <h2 style={{ margin: 0, fontSize: "1.4rem", color: "#2E4053" }}>My Account</h2>
+              <button
+                onClick={() => setAccountOpen(false)}
+                style={{ background: "none", border: "none", fontSize: "1.4rem", cursor: "pointer", color: "#888", lineHeight: 1 }}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* First Name */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: "block", fontSize: "0.85rem", color: "#566573", marginBottom: 4 }}>
+                First Name
+              </label>
+              <input
+                value={advisor?.firstName ?? ""}
+                disabled
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  fontSize: "0.95rem",
+                  padding: "9px 12px",
+                  borderRadius: 6,
+                  border: "1px solid #e0e0e0",
+                  background: "#f5f5f5",
+                  color: "#aaa",
+                  fontFamily: "inherit",
+                  cursor: "not-allowed",
+                }}
+              />
+            </div>
+
+            {/* Last Name */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: "block", fontSize: "0.85rem", color: "#566573", marginBottom: 4 }}>
+                Last Name
+              </label>
+              <input
+                value={advisor?.lastName ?? ""}
+                disabled
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  fontSize: "0.95rem",
+                  padding: "9px 12px",
+                  borderRadius: 6,
+                  border: "1px solid #e0e0e0",
+                  background: "#f5f5f5",
+                  color: "#aaa",
+                  fontFamily: "inherit",
+                  cursor: "not-allowed",
+                }}
+              />
+            </div>
+
+            {/* Email */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: "block", fontSize: "0.85rem", color: "#566573", marginBottom: 4 }}>
+                Email
+              </label>
+              <input
+                value={profileEmail}
+                onChange={(e) => setProfileEmail(e.target.value)}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  fontSize: "0.95rem",
+                  padding: "9px 12px",
+                  borderRadius: 6,
+                  border: "1px solid #BFC9CA",
+                  outline: "none",
+                  fontFamily: "inherit",
+                }}
+              />
+            </div>
+
+            {/* Phone */}
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ display: "block", fontSize: "0.85rem", color: "#566573", marginBottom: 4 }}>
+                Phone
+              </label>
+              <input
+                value={profilePhone}
+                onChange={(e) => setProfilePhone(e.target.value)}
+                placeholder="e.g. (555) 123-4567"
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  fontSize: "0.95rem",
+                  padding: "9px 12px",
+                  borderRadius: 6,
+                  border: "1px solid #BFC9CA",
+                  outline: "none",
+                  fontFamily: "inherit",
+                }}
+              />
+            </div>
+
+            {profileError && (
+              <p style={{ color: "#c62828", fontSize: "0.85rem", marginBottom: 12 }}>{profileError}</p>
+            )}
+
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setAccountOpen(false)}
+                style={{
+                  padding: "9px 20px",
+                  borderRadius: 6,
+                  border: "1px solid #BFC9CA",
+                  background: "white",
+                  cursor: "pointer",
+                  fontSize: "0.95rem",
+                  fontFamily: "inherit",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveProfile}
+                disabled={profileSaving}
+                style={{
+                  padding: "9px 24px",
+                  borderRadius: 6,
+                  border: "none",
+                  background: "#F1C40F",
+                  color: "#2E4053",
+                  fontWeight: "700",
+                  cursor: profileSaving ? "not-allowed" : "pointer",
+                  fontSize: "0.95rem",
+                  fontFamily: "inherit",
+                  opacity: profileSaving ? 0.7 : 1,
+                }}
+              >
+                {profileSaving ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Navbar */}
       <div
         style={{
@@ -610,6 +808,25 @@ function AdvisorDashboard() {
               {advisor.firstName} {advisor.lastName}
             </span>
           )}
+          <button
+            onClick={() => {
+              setProfileEmail(advisor?.email ?? "");
+              setProfilePhone(advisor?.phone ?? "");
+              setProfileError("");
+              setAccountOpen(true);
+            }}
+            style={{
+              background: "transparent",
+              border: "1px solid white",
+              color: "white",
+              padding: "6px 14px",
+              cursor: "pointer",
+              borderRadius: 4,
+              fontSize: "0.9rem",
+            }}
+          >
+            Account
+          </button>
           <button
             onClick={logout}
             style={{

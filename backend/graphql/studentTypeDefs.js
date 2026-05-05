@@ -6,6 +6,7 @@ const studentTypeDefs = gql`
     firstName: String!
     lastName: String!
     email: String!
+    phone: String
     academicStatus: String
     degreeProgram: DegreeProgram
     advisor: Advisor
@@ -29,6 +30,7 @@ const studentTypeDefs = gql`
     updateStudent(id: ID!, input: StudentInput!): Student
     deleteStudent(id: ID!): Boolean
     assignAdvisor(studentId: ID!, advisorId: ID!): Student
+    updateMyProfile(email: String, phone: String): Student
   }
 `;
 
