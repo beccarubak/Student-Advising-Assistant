@@ -16,10 +16,11 @@ function currentTerm() {
   return `Fall ${year}`;
 }
 
-async function extractCourseName(question) {
+async function extractCourseName(question, availableCourseNames) {
+  const courseList = availableCourseNames.join(", ");
   const res = await axios.post("http://localhost:11434/api/generate", {
     model: process.env.OLLAMA_MODEL,
-    prompt: `Extract only the course name from this enrollment request. Return just the course name, nothing else. If you cannot identify a course name, return UNKNOWN.\n\nRequest: "${question}"`,
+    prompt: `From the enrollment request below, identify which course the student wants to enroll in.\n\nAvailable courses: ${courseList}\n\nReturn ONLY the exact course name from the available courses list that best matches the request. If no course matches, return UNKNOWN. Do not explain.\n\nRequest: "${question}"`,
     stream: false,
   });
   return res.data.response.trim();
@@ -64,45 +65,79 @@ async function askLLM(studentId, question) {
     let systemResponse;
 
     if (intent === "DEGREE_AUDIT") {
-        
-      const audit = await calculateDegreeAudit(studentId);
 
-      systemResponse = `
-        Credits Completed: ${audit.creditsCompleted}
-        Credits Remaining: ${audit.creditsRemaining}
-        Remaining Courses:
-        ${audit.remainingCourses.map(c => c.courseName).join(", ")}
-      `;
+      try {
+        const audit = await calculateDegreeAudit(studentId);
+        const remaining = audit.remainingCourses.length > 0
+          ? audit.remainingCourses.map((c) => `• ${c.courseName}`).join("\n")
+          : "None — all required courses completed!";
+        systemResponse = `Degree Progress:\n\nCredits Completed: ${audit.creditsCompleted} / ${audit.totalCreditsRequired}\nCredits Remaining: ${audit.creditsRemaining}\n\nRemaining Required Courses:\n${remaining}`;
+      } catch (err) {
+        systemResponse = `Could not load degree progress: ${err.message}`;
+      }
 
-    } 
-    else if (intent === "ENROLLMENTS") {
+    } else if (intent === "ENROLLMENTS") {
 
       const enrollments = await Enrollment.find({ studentId }).populate("courseId");
-      systemResponse = enrollments
-        .map(e => `${e.courseId.courseName} (${e.status})`)
-        .join("\n");
+
+      if (enrollments.length === 0) {
+        systemResponse = "You have no enrollments on record.";
+      } else {
+        const active = enrollments.filter((e) => e.status === "Enrolled");
+        const completed = enrollments.filter((e) => e.status === "Completed");
+        const dropped = enrollments.filter((e) => e.status === "Dropped");
+        const lines = [];
+        if (active.length > 0) {
+          lines.push("Currently Enrolled:");
+          active.forEach((e) => lines.push(`• ${e.courseId.courseName} (${e.courseId.courseCode})`));
+        }
+        if (completed.length > 0) {
+          if (lines.length > 0) lines.push("");
+          lines.push("Completed:");
+          completed.forEach((e) => lines.push(`• ${e.courseId.courseName}${e.grade ? ` — Grade: ${e.grade}` : ""}`));
+        }
+        if (dropped.length > 0) {
+          if (lines.length > 0) lines.push("");
+          lines.push("Dropped:");
+          dropped.forEach((e) => lines.push(`• ${e.courseId.courseName}`));
+        }
+        systemResponse = lines.join("\n");
+      }
 
     } else if (intent === "GRADUATION_STATUS") {
 
-      const audit = await calculateDegreeAudit(studentId);
-
-      systemResponse = audit.creditsRemaining === 0 ? "You are eligible to graduate!"
-          : `You still need ${audit.creditsRemaining} credits to graduate.`;
+      try {
+        const audit = await calculateDegreeAudit(studentId);
+        if (audit.creditsRemaining === 0) {
+          systemResponse = "You are eligible to graduate! All required courses are completed.";
+        } else {
+          const courseWord = audit.remainingCourses.length === 1 ? "course" : "courses";
+          systemResponse = `You are not yet eligible to graduate.\n\nYou still need ${audit.creditsRemaining} more credits (${audit.remainingCourses.length} ${courseWord} remaining).`;
+        }
+      } catch (err) {
+        systemResponse = `Could not check graduation status: ${err.message}`;
+      }
 
     } else if (intent === "COURSE_ELIGIBILITY") {
 
-      const completedEnrollments = await Enrollment.find({
-        studentId,
-        status: "Completed",
-      }).select("courseId");
+      const [completedEnrollments, activeEnrollments] = await Promise.all([
+        Enrollment.find({ studentId, status: "Completed" }).select("courseId"),
+        Enrollment.find({ studentId, status: "Enrolled" }).select("courseId"),
+      ]);
       const completedIds = new Set(completedEnrollments.map((e) => e.courseId.toString()));
+      const enrolledIds = new Set(activeEnrollments.map((e) => e.courseId.toString()));
 
       const allCourses = await Course.find().populate("prerequisites");
       const eligible = [];
+      const alreadyEnrolled = [];
       const blocked = [];
 
       for (const course of allCourses) {
         if (completedIds.has(course._id.toString())) continue;
+        if (enrolledIds.has(course._id.toString())) {
+          alreadyEnrolled.push(course.courseName);
+          continue;
+        }
         const unmet = course.prerequisites.filter((p) => !completedIds.has(p._id.toString()));
         if (unmet.length === 0) {
           eligible.push(course.courseName);
@@ -111,21 +146,42 @@ async function askLLM(studentId, question) {
         }
       }
 
-      systemResponse = `Courses you are eligible to enroll in:\n${eligible.join("\n") || "None"}\n\nCourses with unmet prerequisites:\n${blocked.join("\n") || "None"}`;
+      const lines = [];
+      if (eligible.length > 0) {
+        lines.push("Eligible to enroll in:");
+        eligible.forEach((n) => lines.push(`• ${n}`));
+      }
+      if (alreadyEnrolled.length > 0) {
+        if (lines.length > 0) lines.push("");
+        lines.push("Already enrolled in:");
+        alreadyEnrolled.forEach((n) => lines.push(`• ${n}`));
+      }
+      if (blocked.length > 0) {
+        if (lines.length > 0) lines.push("");
+        lines.push("Prerequisites not yet met:");
+        blocked.forEach((n) => lines.push(`• ${n}`));
+      }
+      systemResponse = lines.length > 0 ? lines.join("\n") : "No available courses found.";
 
     } else if (intent === "ENROLL_COURSE") {
 
-      const courseName = await extractCourseName(question);
+      const allCourses = await Course.find().select("courseName courseCode");
+      const courseName = await extractCourseName(question, allCourses.map((c) => c.courseName));
 
       if (courseName === "UNKNOWN") {
         systemResponse = "I couldn't identify which course you'd like to enroll in. Please include the course name, e.g. \"Enroll me in Algorithms\".";
       } else {
-        const course = await Course.findOne({
-          courseName: { $regex: new RegExp(`^${courseName}$`, "i") },
+        // Try exact match first, then partial match as fallback
+        let course = await Course.findOne({
+          courseName: { $regex: new RegExp(`^${courseName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
         });
+        if (!course) {
+          course = await Course.findOne({
+            courseName: { $regex: new RegExp(courseName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i") },
+          });
+        }
 
         if (!course) {
-          const allCourses = await Course.find().select("courseName");
           const names = allCourses.map((c) => c.courseName).join(", ");
           systemResponse = `I couldn't find a course named "${courseName}". Available courses: ${names}.`;
         } else {
