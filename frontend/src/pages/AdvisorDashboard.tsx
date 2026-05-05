@@ -632,7 +632,7 @@ function AdvisorDashboard() {
         style={{
           display: "flex",
           flex: 1,
-          padding: 24,
+          padding: 32,
           gap: 20,
           height: "calc(100vh - 57px)",
           boxSizing: "border-box",
@@ -781,7 +781,7 @@ function AdvisorDashboard() {
               </button>
             </div>
 
-            <div style={{ overflowY: "auto", flex: 1 }}>
+            <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
               {students.length === 0 && (
                 <p style={{ color: "#566573", fontSize: "0.9rem", margin: 0 }}>No students found.</p>
               )}
@@ -1230,7 +1230,7 @@ function AdvisorDashboard() {
           </div>
         </div>
 
-        {/* Right Panel — Advisor Analytics Chat */}
+        {/* Right Panel — Advising Assistant */}
         <div
           style={{
             flex: 1,
@@ -1244,7 +1244,7 @@ function AdvisorDashboard() {
           }}
         >
           <h3 style={{ margin: "0 0 14px 0", fontSize: "1.1rem", color: "#2E4053", fontWeight: "700" }}>
-            Advisor Analytics Chat
+            Advising Assistant
           </h3>
 
           {/* Message history */}

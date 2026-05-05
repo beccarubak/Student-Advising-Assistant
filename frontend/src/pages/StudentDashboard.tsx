@@ -263,7 +263,7 @@ function StudentDashboard() {
       </div>
 
       {/* Main Content */}
-      <div style={{ display: "flex", flex: 1, padding: 24, gap: 20 }}>
+      <div style={{ display: "flex", flex: 1, padding: 32, gap: 20 }}>
         {/* Left: Courses */}
         <div
           style={{
