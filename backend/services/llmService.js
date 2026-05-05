@@ -141,19 +141,27 @@ async function askLLM(studentId, question) {
 
     } else {
 
-      systemResponse = `
-        I can help with:
-        • Degree progress
-        • Enrollment status
-        • Graduation eligibility
-        • Course eligibility and prerequisites
+      systemResponse = `Here's everything I can help you with:
 
-        Try asking:
-        - "What courses do I still need?"
-        - "Am I eligible to graduate?"
-        - "What am I enrolled in?"
-        - "Which courses can I enroll in?"
-    `;
+Degree Progress
+- "What courses do I still need to complete?"
+- "Show me my degree audit"
+
+Current Enrollments
+- "What am I currently enrolled in?"
+- "Show my enrollment status"
+
+Graduation Eligibility
+- "Am I eligible to graduate?"
+- "How many credits do I have left?"
+
+Course Eligibility & Prerequisites
+- "Which courses can I enroll in next?"
+- "What courses am I eligible for?"
+
+Enroll in a Course
+- "Enroll me in Algorithms"
+- "Sign me up for [course name]"`;
     }
 
     await ChatInteraction.create({

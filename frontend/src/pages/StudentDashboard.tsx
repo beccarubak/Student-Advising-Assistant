@@ -351,46 +351,18 @@ function StudentDashboard() {
               background: "#f8f9fa",
             }}
           >
-            {messages.length === 0 && !question.trim() && (
+            {messages.length === 0 && (
               <div
                 style={{
                   display: "flex",
-                  flexDirection: "column",
                   alignItems: "center",
                   justifyContent: "center",
                   height: "100%",
-                  gap: 20,
                 }}
               >
-                <p style={{ color: "#717D7E", fontSize: "1rem", margin: 0 }}>
-                  Ask a question to get started
+                <p style={{ color: "#717D7E", fontSize: "1rem", margin: 0, textAlign: "center" }}>
+                  Ask me anything about your academic progress
                 </p>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, justifyContent: "center" }}>
-                  {[
-                    "What courses can I take next?",
-                    "Am I on track to graduate?",
-                    "Enroll me in Algorithms",
-                  ].map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      onClick={() => {
-                        setQuestion(suggestion);
-                      }}
-                      style={{
-                        padding: "8px 18px",
-                        borderRadius: 20,
-                        border: "1px solid #BFC9CA",
-                        background: "white",
-                        color: "#2E4053",
-                        fontSize: "0.95rem",
-                        cursor: "pointer",
-                        fontFamily: "inherit",
-                      }}
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
               </div>
             )}
             {messages.map((m, i) => (
